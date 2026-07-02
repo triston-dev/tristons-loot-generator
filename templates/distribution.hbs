@@ -1,0 +1,113 @@
+{{#if missing}}
+  <div class="tlg-editor-empty">
+    <p>{{localize 'TLG.Distribution.SessionMissing'}}</p>
+  </div>
+{{else}}
+  <div class="tlg-distribution-layout">
+    {{#if noGM}}
+      <div class="tlg-banner-warning">
+        <i class="fas fa-triangle-exclamation"></i>
+        {{localize 'TLG.Distribution.NoGMBanner'}}
+      </div>
+    {{/if}}
+
+    {{#if showSessionPicker}}
+      <div class="tlg-session-tabs">
+        {{#each releasedSessions as |s|}}
+          <button type="button" class="tlg-session-tab {{#if s.active}}tlg-session-tab--active{{/if}}" data-action="switchSession" data-session-id="{{s.id}}">
+            {{s.name}}
+          </button>
+        {{/each}}
+      </div>
+    {{/if}}
+
+    <div class="tlg-progress-bar">
+      <div class="tlg-progress-fill" style="width: {{resolved}}0%"></div>
+      <span class="tlg-progress-label">{{localize 'TLG.Distribution.ProgressLabel'}} {{resolved}}/{{total}}</span>
+    </div>
+
+    {{#if currencyHasAny}}
+      <div class="tlg-currency-bar">
+        <div class="tlg-currency-pot">
+          {{#each currencyRows as |row|}}
+            <span class="tlg-currency-pot-denom">{{row.amount}} {{row.label}}</span>
+          {{/each}}
+        </div>
+        {{#if evenSplitPreview.length}}
+          <div class="tlg-split-preview">
+            {{#each evenSplitPreview as |line|}}<span>{{line}}</span>{{/each}}
+          </div>
+        {{/if}}
+        <div class="tlg-currency-actions">
+          <button type="button" data-action="splitEvenly" {{#if noGM}}disabled title="{{localize 'TLG.Distribution.NoGMTooltip'}}"{{/if}}>
+            <i class="fas fa-scale-balanced"></i> {{localize 'TLG.Distribution.SplitEvenly'}}
+          </button>
+          {{#if isGM}}
+            <button type="button" data-action="allocateManually" {{#if noGM}}disabled title="{{localize 'TLG.Distribution.NoGMTooltip'}}"{{/if}}>
+              <i class="fas fa-table-cells"></i> {{localize 'TLG.Distribution.AllocateManually'}}
+            </button>
+          {{/if}}
+        </div>
+      </div>
+    {{/if}}
+
+    <div class="tlg-item-rows">
+      {{#each itemRows as |row|}}
+        <div class="tlg-item-row tlg-item-row--{{row.state}}" data-item-id="{{row.id}}">
+          {{#if row.img}}<img class="tlg-item-img" src="{{row.img}}" alt="">{{/if}}
+          <span class="tlg-item-name" data-action="openItem" data-item-id="{{row.id}}">{{row.name}}</span>
+          <span class="tlg-item-qty">×{{row.qty}}</span>
+          <span class="tlg-item-source">{{row.sourceNpc}}</span>
+
+          <div class="tlg-item-state">
+            {{#if (eq row.state "unclaimed")}}
+              <button type="button" data-action="claim" data-item-id="{{row.id}}" {{#if noGM}}disabled title="{{localize 'TLG.Distribution.NoGMTooltip'}}"{{else}}{{#unless ../hasMyCharacters}}disabled{{/unless}}{{/if}}>
+                {{localize 'TLG.Distribution.Claim'}}
+              </button>
+              <button type="button" data-action="give" data-item-id="{{row.id}}" {{#if noGM}}disabled title="{{localize 'TLG.Distribution.NoGMTooltip'}}"{{/if}}>
+                {{localize 'TLG.Distribution.GiveTo'}}
+              </button>
+              <button type="button" class="tlg-item-abandon" data-action="abandon" data-item-id="{{row.id}}" title="{{localize 'TLG.Distribution.Abandon'}}" {{#if noGM}}disabled{{/if}}>
+                <i class="fas fa-ban"></i>
+              </button>
+            {{/if}}
+
+            {{#if (eq row.state "claimed")}}
+              <span class="tlg-claimant-chip">
+                {{#if row.claimant.img}}<img src="{{row.claimant.img}}" alt="">{{/if}}
+                {{row.claimant.name}}
+              </span>
+              {{#if row.isMine}}
+                <button type="button" data-action="unclaim" data-item-id="{{row.id}}" {{#if noGM}}disabled title="{{localize 'TLG.Distribution.NoGMTooltip'}}"{{/if}}>
+                  {{localize 'TLG.Distribution.Unclaim'}}
+                </button>
+              {{else if ../isGM}}
+                <button type="button" data-action="unclaim" data-item-id="{{row.id}}" {{#if noGM}}disabled title="{{localize 'TLG.Distribution.NoGMTooltip'}}"{{/if}}>
+                  {{localize 'TLG.Distribution.Unclaim'}}
+                </button>
+              {{/if}}
+            {{/if}}
+
+            {{#if (eq row.state "abandoned")}}
+              <span class="tlg-abandoned-label">{{localize 'TLG.Distribution.Abandoned'}}</span>
+              <button type="button" data-action="restore" data-item-id="{{row.id}}" {{#if noGM}}disabled title="{{localize 'TLG.Distribution.NoGMTooltip'}}"{{/if}}>
+                {{localize 'TLG.Distribution.Restore'}}
+              </button>
+            {{/if}}
+          </div>
+        </div>
+      {{/each}}
+    </div>
+
+    {{#if isGM}}
+      <footer class="tlg-distribution-footer">
+        <button type="button" data-action="abandonRemaining" {{#if noGM}}disabled{{/if}}>
+          <i class="fas fa-ban"></i> {{localize 'TLG.Distribution.AbandonRemaining'}}
+        </button>
+        <button type="button" class="tlg-finalize-btn" data-action="finalize" {{#if noGM}}disabled title="{{localize 'TLG.Distribution.NoGMTooltip'}}"{{/if}}>
+          <i class="fas fa-check-double"></i> {{localize 'TLG.Distribution.Finalize'}}
+        </button>
+      </footer>
+    {{/if}}
+  </div>
+{{/if}}

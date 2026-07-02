@@ -137,13 +137,29 @@ describe("rollLoot", () => {
     expect(r.items).toHaveLength(1);
   });
 
-  it("rolltable entries draw via ctx.drawRollTable and append qty times", async () => {
+  it("rolltable entries with identical uuids merge into one row with summed qty", async () => {
     const drawn = [{ uuid: "Item.abc", qty: 1 }];
     const tables = { t1: { id: "t1", rolls: "1", entries: [
       { id: "rt", weight: 1, type: "rolltable", uuid: "RollTable.xyz", qty: "2" }
     ] } };
     const r = await rollLoot(base(tables, { drawRollTable: async () => drawn }));
+    expect(r.items).toHaveLength(1);
+    expect(r.items[0].qty).toBe(2);
+    expect(r.items[0].uuid).toBe("Item.abc");
+  });
+
+  it("rolltable entries with different uuids stay as separate rows", async () => {
+    const drawn1 = [{ uuid: "Item.abc", qty: 1 }];
+    const drawn2 = [{ uuid: "Item.xyz", qty: 1 }];
+    let callCount = 0;
+    const drawRollTable = async () => callCount++ === 0 ? drawn1 : drawn2;
+    const tables = { t1: { id: "t1", rolls: "2", entries: [
+      { id: "rt", weight: 1, type: "rolltable", uuid: "RollTable.rt", qty: "1" }
+    ] } };
+    const r = await rollLoot(base(tables, { drawRollTable, rng: seq(0.1) }));
     expect(r.items).toHaveLength(2);
+    expect(r.items[0].uuid).toBe("Item.abc");
+    expect(r.items[1].uuid).toBe("Item.xyz");
   });
 
   it("nothing entries contribute nothing", async () => {

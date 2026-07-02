@@ -137,7 +137,8 @@ async function resolveEntry(result, entry, ctx, depth, visited) {
       for (let i = 0; i < qty; i++) {
         const drawn = await ctx.drawRollTable(entry.uuid);
         for (const item of drawn ?? []) {
-          result.items.push(item);
+          const itemQty = item.qty ?? 1;
+          mergeItem(result.items, item, itemQty);
         }
       }
       break;

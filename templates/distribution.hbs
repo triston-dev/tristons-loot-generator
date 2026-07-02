@@ -33,19 +33,34 @@
             <span class="tlg-currency-pot-denom">{{row.amount}} {{row.label}}</span>
           {{/each}}
         </div>
-        {{#if evenSplitPreview.length}}
-          <div class="tlg-split-preview">
-            {{#each evenSplitPreview as |line|}}<span>{{line}}</span>{{/each}}
+        {{#if currencyAllocated}}
+          <div class="tlg-allocation-status">
+            <span class="tlg-badge tlg-badge--allocated">{{localize 'TLG.Distribution.Allocated'}}</span>
+            {{#each allocationSummary as |summary|}}
+              <span class="tlg-allocation-line">{{summary.name}}: {{summary.amounts}}</span>
+            {{/each}}
           </div>
+        {{else}}
+          {{#if evenSplitPreview.length}}
+            <div class="tlg-split-preview">
+              {{#each evenSplitPreview as |line|}}<span>{{line}}</span>{{/each}}
+            </div>
+          {{/if}}
         {{/if}}
         <div class="tlg-currency-actions">
-          <button type="button" data-action="splitEvenly" {{#if noGM}}disabled title="{{localize 'TLG.Distribution.NoGMTooltip'}}"{{/if}}>
-            <i class="fas fa-scale-balanced"></i> {{localize 'TLG.Distribution.SplitEvenly'}}
-          </button>
-          {{#if isGM}}
-            <button type="button" data-action="allocateManually" {{#if noGM}}disabled title="{{localize 'TLG.Distribution.NoGMTooltip'}}"{{/if}}>
-              <i class="fas fa-table-cells"></i> {{localize 'TLG.Distribution.AllocateManually'}}
+          {{#if currencyAllocated}}
+            <button type="button" data-action="splitEvenly" {{#if noGM}}disabled title="{{localize 'TLG.Distribution.NoGMTooltip'}}"{{/if}}>
+              <i class="fas fa-exchange-alt"></i> {{localize 'TLG.Distribution.Reallocate'}}
             </button>
+          {{else}}
+            <button type="button" data-action="splitEvenly" {{#if noGM}}disabled title="{{localize 'TLG.Distribution.NoGMTooltip'}}"{{/if}}>
+              <i class="fas fa-scale-balanced"></i> {{localize 'TLG.Distribution.SplitEvenly'}}
+            </button>
+            {{#if isGM}}
+              <button type="button" data-action="allocateManually" {{#if noGM}}disabled title="{{localize 'TLG.Distribution.NoGMTooltip'}}"{{/if}}>
+                <i class="fas fa-table-cells"></i> {{localize 'TLG.Distribution.AllocateManually'}}
+              </button>
+            {{/if}}
           {{/if}}
         </div>
       </div>

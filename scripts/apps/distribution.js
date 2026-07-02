@@ -124,6 +124,36 @@ export function validateManualAllocation(allocation, pot) {
   return { ok: true };
 }
 
+/**
+ * Formats an allocation summary showing each actor's nonzero denominations.
+ * Pure function: takes allocation, denomination list, and a name resolver.
+ * Returns an array of {name, amounts} objects in the same order as actorUuids.
+ *
+ * @param {{[actorUuid:string]: {[denom:string]: number}}} allocation
+ * @param {Array<{key:string, label:string}>} denominations
+ * @param {(uuid:string) => string} resolveName - async-resolved name or uuid fallback
+ * @returns {Array<{name:string, amounts:string}>}
+ */
+export function buildAllocationSummary(allocation, denominations, resolveName) {
+  const summary = [];
+  for (const [actorUuid, shares] of Object.entries(allocation ?? {})) {
+    const amounts = [];
+    for (const denom of denominations) {
+      const amount = shares?.[denom.key] ?? 0;
+      if (amount > 0) {
+        amounts.push(`${amount} ${denom.label}`);
+      }
+    }
+    if (amounts.length > 0) {
+      summary.push({
+        name: resolveName(actorUuid),
+        amounts: amounts.join(", ")
+      });
+    }
+  }
+  return summary;
+}
+
 // ---------------------------------------------------------------------------
 // partyCharacters: shared by DistributionApp and main.js's chat-card/ready flows.
 // ---------------------------------------------------------------------------
@@ -284,6 +314,24 @@ export class DistributionApp extends HandlebarsApplicationMixin(ApplicationV2) {
       game.i18n.format(k, d)
     );
 
+    // Build allocation summary if currency has been allocated
+    const currencyAllocated = session.currencyAllocation !== null;
+    let allocationSummary = [];
+    if (currencyAllocated) {
+      // Resolve all actor names first
+      const nameMap = {};
+      for (const actorUuid of Object.keys(session.currencyAllocation ?? {})) {
+        const resolved = await this.#resolveActorDisplay(actorUuid, party);
+        nameMap[actorUuid] = resolved.name;
+      }
+      // Now build summary with resolved names
+      allocationSummary = buildAllocationSummary(
+        session.currencyAllocation,
+        denominations,
+        (uuid) => nameMap[uuid] || uuid
+      );
+    }
+
     const itemRows = [];
     for (const item of session.items) {
       itemRows.push(await this.#buildItemRow(item, party));
@@ -305,6 +353,8 @@ export class DistributionApp extends HandlebarsApplicationMixin(ApplicationV2) {
       currencyRows,
       currencyHasAny: currencyRows.length > 0,
       evenSplitPreview,
+      currencyAllocated,
+      allocationSummary,
       party,
       itemRows,
       resolved,

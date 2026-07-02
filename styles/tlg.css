@@ -607,6 +607,33 @@
   color: var(--color-text-subtle, var(--color-text-secondary));
 }
 
+.tlg-allocation-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: var(--font-size-11, 11px);
+  color: var(--color-text-subtle, var(--color-text-secondary));
+}
+
+.tlg-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  font-size: var(--font-size-11, 11px);
+  font-weight: bold;
+  width: fit-content;
+}
+
+.tlg-badge--allocated {
+  background: var(--color-level-success, #33dd00);
+  color: var(--color-light-1, #fff);
+}
+
+.tlg-allocation-line {
+  display: block;
+}
+
 .tlg-currency-actions {
   display: flex;
   gap: 0.4rem;

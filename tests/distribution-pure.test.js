@@ -9,10 +9,11 @@ let escapeHTML;
 let buildEvenSplitPreview;
 let buildClaimChoices;
 let validateManualAllocation;
+let buildAllocationSummary;
 
 beforeEach(async () => {
   installShim({ settings: { "tristons-loot-generator.contentPack": "dnd5e" } });
-  ({ escapeHTML, buildEvenSplitPreview, buildClaimChoices, validateManualAllocation } = await import(
+  ({ escapeHTML, buildEvenSplitPreview, buildClaimChoices, validateManualAllocation, buildAllocationSummary } = await import(
     "../scripts/apps/distribution.js?fresh=distribution-pure"
   ));
 });
@@ -124,5 +125,49 @@ describe("validateManualAllocation", () => {
 
   it("handles an empty allocation against an empty pot", () => {
     expect(validateManualAllocation({}, {})).toEqual({ ok: true });
+  });
+});
+
+describe("buildAllocationSummary", () => {
+  const denominations = [{ key: "gp", label: "GP" }, { key: "sp", label: "SP" }];
+  const resolveName = (uuid) => ({ "Actor.a": "Aria", "Actor.b": "Bram" }[uuid] || uuid);
+
+  it("returns one summary entry per actor with nonzero denominations", () => {
+    const allocation = { "Actor.a": { gp: 5, sp: 0 }, "Actor.b": { gp: 0, sp: 10 } };
+    const summary = buildAllocationSummary(allocation, denominations, resolveName);
+    expect(summary).toEqual([
+      { name: "Aria", amounts: "5 GP" },
+      { name: "Bram", amounts: "10 SP" }
+    ]);
+  });
+
+  it("combines multiple denominations for a single actor", () => {
+    const allocation = { "Actor.a": { gp: 5, sp: 10 } };
+    const summary = buildAllocationSummary(allocation, denominations, resolveName);
+    expect(summary).toEqual([{ name: "Aria", amounts: "5 GP, 10 SP" }]);
+  });
+
+  it("skips actors with all-zero denominations", () => {
+    const allocation = { "Actor.a": { gp: 5 }, "Actor.b": { gp: 0, sp: 0 } };
+    const summary = buildAllocationSummary(allocation, denominations, resolveName);
+    expect(summary).toEqual([{ name: "Aria", amounts: "5 GP" }]);
+  });
+
+  it("returns an empty array for an empty allocation", () => {
+    expect(buildAllocationSummary({}, denominations, resolveName)).toEqual([]);
+  });
+
+  it("uses the resolveName callback for actor uuids", () => {
+    const allocation = { "Actor.unknown": { gp: 5 } };
+    const summary = buildAllocationSummary(allocation, denominations, resolveName);
+    expect(summary).toEqual([{ name: "Actor.unknown", amounts: "5 GP" }]);
+  });
+
+  it("preserves actor order from the allocation object", () => {
+    const allocation = { "Actor.b": { gp: 2 }, "Actor.a": { gp: 3 } };
+    const summary = buildAllocationSummary(allocation, denominations, resolveName);
+    // Object.entries preserves insertion order; allocation order is what we test
+    expect(summary[0].name).toBe("Bram");
+    expect(summary[1].name).toBe("Aria");
   });
 });

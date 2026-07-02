@@ -144,6 +144,8 @@
       "SplitPreviewWithRemainder": "{share} {label} each, {remainder} {label} over",
       "SplitEvenly": "Split evenly",
       "AllocateManually": "Allocate manually",
+      "Allocated": "Allocated",
+      "Reallocate": "Reallocate",
       "SplitRemainderChat": "{name} received the odd {denom} from the even split.",
       "Claim": "Claim",
       "GiveTo": "Give to…",

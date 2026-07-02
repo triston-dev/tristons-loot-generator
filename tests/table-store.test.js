@@ -130,4 +130,47 @@ describe("additional coverage", () => {
     expect(dump.packId).toBe("dnd5e");
     expect(dump.overrides["type:humanoid"].name).toBe("Overridden");
   });
+
+  it("import accepts payload-internal nested references", async () => {
+    const payload = {
+      format: 1,
+      packId: "dnd5e",
+      overrides: {},
+      customs: {
+        "custom:a": {
+          id: "custom:a", name: "A", rolls: "1",
+          entries: [{ id: "e1", weight: 1, type: "table", tableId: "custom:b" }]
+        },
+        "custom:b": {
+          id: "custom:b", name: "B", rolls: "1",
+          entries: [{ id: "e1", weight: 1, type: "nothing" }]
+        }
+      },
+      rules: []
+    };
+    await expect(TS.importData(JSON.stringify(payload))).resolves.not.toThrow();
+    expect(TS.getEffectiveTable("custom:a")).toBeTruthy();
+    expect(TS.getEffectiveTable("custom:b")).toBeTruthy();
+  });
+
+  it("import rejects references that would dangle after import", async () => {
+    const c = await TS.createCustomTable("C");
+    await TS.saveTable(c);
+
+    const payload = {
+      format: 1,
+      packId: "dnd5e",
+      overrides: {},
+      customs: {
+        "custom:d": {
+          id: "custom:d", name: "D", rolls: "1",
+          entries: [{ id: "e1", weight: 1, type: "table", tableId: c.id }]
+        }
+      },
+      rules: []
+    };
+    await expect(TS.importData(JSON.stringify(payload))).rejects.toThrow();
+    expect(TS.getEffectiveTable(c.id)).toBeTruthy();
+    expect(TS.getEffectiveTable("custom:d")).toBeNull();
+  });
 });

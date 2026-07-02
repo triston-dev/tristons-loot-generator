@@ -166,9 +166,26 @@ export async function importData(json) {
   if (typeof data.customs !== "object" || data.customs === null) throw new Error("TLG.TableStore.SchemaMismatch");
   if (!Array.isArray(data.rules)) throw new Error("TLG.TableStore.SchemaMismatch");
 
+  // Nested `type: "table"` references must resolve against the universe of ids
+  // that will exist AFTER this import is applied, not the current (pre-import)
+  // store. Otherwise: (a) a custom table referencing a sibling custom table in
+  // the same payload spuriously fails (sibling isn't in the store yet), and
+  // (b) a payload that drops a currently-stored custom table which it still
+  // references would pass (stale reference resolves against old state) but
+  // dangle immediately after import.
+  const pack = getActivePack();
+  const postImportIds = new Set([
+    ...Object.keys(data.customs),
+    ...Object.keys(data.overrides),
+    ...Object.keys(pack.typeTables ?? {}).map((key) => `type:${key}`),
+    ...Object.keys(pack.sharedTables ?? {}),
+    "fallback"
+  ]);
+  const tableExists = (id) => postImportIds.has(id);
+
   const allTables = [...Object.values(data.overrides), ...Object.values(data.customs)];
   for (const table of allTables) {
-    const problems = validateTable(table);
+    const problems = validateTable(table, { tableExists });
     if (problems.length) throw new Error(`TLG.TableStore.InvalidTable: ${table?.id ?? "?"}: ${problems.join("; ")}`);
   }
 
@@ -182,7 +199,7 @@ export async function importData(json) {
   return { tables: allTables.length, rules: data.rules.length };
 }
 
-export function validateTable(table) {
+export function validateTable(table, { tableExists = (id) => getEffectiveTable(id) !== null } = {}) {
   const problems = [];
   if (!table || typeof table !== "object") {
     problems.push("TLG.TableStore.Validate.NotAnObject");
@@ -201,7 +218,7 @@ export function validateTable(table) {
       problems.push(`TLG.TableStore.Validate.BadQtyFormula: ${entry.id}`);
     }
     if (entry.type === "table") {
-      if (!entry.tableId || getEffectiveTable(entry.tableId) === null) {
+      if (!entry.tableId || !tableExists(entry.tableId)) {
         problems.push(`TLG.TableStore.Validate.UnresolvedNestedTable: ${entry.id}:${entry.tableId}`);
       }
     }

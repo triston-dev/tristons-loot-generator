@@ -1,5 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { buildSessionData, applyReroll } from "../scripts/core/encounter-service.js";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { installShim } from "./foundry-shim.js";
+import { buildSessionData, applyReroll, rerollNpc } from "../scripts/core/encounter-service.js";
+import { createSession, getSession, updateSession } from "../scripts/core/session-store.js";
+import { createCustomTable, saveTable, saveKeywordRules } from "../scripts/core/table-store.js";
 
 const opts = (over = {}) => ({ hostileDisposition: -1, name: "Goblin ambush", carriedEnabled: true, ...over });
 
@@ -330,5 +333,253 @@ describe("applyReroll", () => {
   it("rerolled item rows omit currency-only entries (only items[] entries land in items)", () => {
     const draft = applyReroll(makeSession(), "t1", rolled({ items: [], currency: { gp: 3 } }));
     expect(draft.items.filter((i) => i.sourceNpc === "t1" && !i.carried)).toHaveLength(0);
+  });
+});
+
+describe("rerollNpc", () => {
+  // Deterministic single-entry tables: rolls: "1" is a constant (no dice), and a
+  // lone weight-1 entry is the only weightedPick() candidate, so the item drawn
+  // is fully predictable regardless of Math.random.
+  function singleItemTable(name, uuid) {
+    return { name, rolls: "1", entries: [{ id: "e1", weight: 1, type: "item", uuid, qty: "1" }] };
+  }
+
+  beforeEach(() => {
+    installShim({ settings: { "tristons-loot-generator.contentPack": "dnd5e", "tristons-loot-generator.generosity": "standard" } });
+  });
+
+  afterEach(() => {
+    delete globalThis.fromUuid;
+  });
+
+  async function seedTables() {
+    const liveTable = await createCustomTable("Live-match table");
+    liveTable.entries = [{ id: "e1", weight: 1, type: "item", uuid: "Item.liveMatch", qty: "1" }];
+    await saveTable(liveTable);
+
+    const storedTable = await createCustomTable("Stored fallback table");
+    storedTable.entries = [{ id: "e1", weight: 1, type: "item", uuid: "Item.storedFallback", qty: "1" }];
+    await saveTable(storedTable);
+
+    return { liveTable, storedTable };
+  }
+
+  function baseSession(over = {}) {
+    return {
+      name: "Ambush",
+      npcs: [
+        { tokenId: "t1", actorName: "Goblin", img: "g.svg", cr: 0.25, tableSource: "keyword", tableId: null, included: true, defeated: true, npcCurrency: { gp: 1 } },
+        { tokenId: "t2", actorName: "Orc", img: "o.svg", cr: 1, tableSource: "type:humanoid", tableId: "type:humanoid", included: true, defeated: true, npcCurrency: { gp: 20 } }
+      ],
+      items: [
+        { id: "i-t2", name: "Axe", img: "a.svg", qty: 1, sourceNpc: "t2", state: "unclaimed", uuid: "Item.axe" }
+      ],
+      currency: { gp: 21 },
+      currencyManual: false,
+      ...over
+    };
+  }
+
+  it("returns null when the session id is unknown", async () => {
+    const result = await rerollNpc("nope", "t1");
+    expect(result).toBeNull();
+  });
+
+  it("returns null when the tokenId has no matching npc row", async () => {
+    await seedTables();
+    const session = await createSession(baseSession({ npcs: baseSession().npcs }));
+    const result = await rerollNpc(session.id, "nope");
+    expect(result).toBeNull();
+  });
+
+  describe("LIVE path (carried row + resolvable token + actor)", () => {
+    it("re-runs matchTable against the live actor, ignoring the stored tableId, and rolls from the matched table", async () => {
+      const { liveTable, storedTable } = await seedTables();
+      await saveKeywordRules([
+        { id: "r1", pattern: "Goblin", matchType: "includes", tableId: liveTable.id, enabled: true }
+      ]);
+
+      const session = await createSession(baseSession({
+        npcs: [
+          // stored tableId deliberately points at the OTHER table, proving re-match happens
+          { tokenId: "t1", actorName: "Goblin", img: "g.svg", cr: 0.25, tableSource: "type:humanoid", tableId: storedTable.id, included: true, defeated: true, npcCurrency: { gp: 1 } },
+          { tokenId: "t2", actorName: "Orc", img: "o.svg", cr: 1, tableSource: "type:humanoid", tableId: "type:humanoid", included: true, defeated: true, npcCurrency: { gp: 20 } }
+        ],
+        items: [
+          { id: "i-carried", name: "Rusty knife", img: "k.svg", qty: 1, sourceNpc: "t1", state: "unclaimed", itemData: { name: "Rusty knife" }, carried: true, sourceTokenUuid: "Scene.s.Token.t1" },
+          { id: "i-t2", name: "Axe", img: "a.svg", qty: 1, sourceNpc: "t2", state: "unclaimed", uuid: "Item.axe" }
+        ]
+      }));
+
+      const fakeActor = {
+        name: "Goblin",
+        system: { details: { biography: { value: "" }, type: { value: "humanoid" }, cr: 0.25 } },
+        getFlag: () => undefined
+      };
+      globalThis.fromUuid = async (uuid) => {
+        if (uuid === "Scene.s.Token.t1") return { actor: fakeActor };
+        return null;
+      };
+
+      const updated = await rerollNpc(session.id, "t1");
+
+      const t1Items = updated.items.filter((i) => i.sourceNpc === "t1" && !i.carried);
+      expect(t1Items).toHaveLength(1);
+      expect(t1Items[0].uuid).toBe("Item.liveMatch"); // from the keyword-matched table, NOT storedTable
+
+      // carried row for t1 preserved untouched
+      const carried = updated.items.find((i) => i.id === "i-carried");
+      expect(carried).toMatchObject({ carried: true, sourceNpc: "t1", itemData: { name: "Rusty knife" }, sourceTokenUuid: "Scene.s.Token.t1" });
+
+      // t2's items untouched
+      const t2Items = updated.items.filter((i) => i.sourceNpc === "t2");
+      expect(t2Items).toHaveLength(1);
+      expect(t2Items[0].id).toBe("i-t2");
+
+      // npcCurrency swapped for t1, t2 unchanged
+      const npc1 = updated.npcs.find((n) => n.tokenId === "t1");
+      const npc2 = updated.npcs.find((n) => n.tokenId === "t2");
+      expect(npc2.npcCurrency).toEqual({ gp: 20 });
+      // this table has no currency entries -> rolled currency is {}
+      expect(npc1.npcCurrency).toEqual({});
+
+      // session.currency recomputed from included rows: t1 now {} + t2 {gp:20}
+      expect(updated.currency).toEqual({ gp: 20 });
+    });
+
+    it("preserves session.currency when currencyManual is true, but still updates npcCurrency", async () => {
+      const { liveTable, storedTable } = await seedTables();
+      await saveKeywordRules([
+        { id: "r1", pattern: "Goblin", matchType: "includes", tableId: liveTable.id, enabled: true }
+      ]);
+
+      const session = await createSession(baseSession({
+        currency: { gp: 999 },
+        npcs: [
+          { tokenId: "t1", actorName: "Goblin", img: "g.svg", cr: 0.25, tableSource: "type:humanoid", tableId: storedTable.id, included: true, defeated: true, npcCurrency: { gp: 1 } },
+          { tokenId: "t2", actorName: "Orc", img: "o.svg", cr: 1, tableSource: "type:humanoid", tableId: "type:humanoid", included: true, defeated: true, npcCurrency: { gp: 20 } }
+        ],
+        items: [
+          { id: "i-carried", name: "Rusty knife", img: "k.svg", qty: 1, sourceNpc: "t1", state: "unclaimed", itemData: { name: "Rusty knife" }, carried: true, sourceTokenUuid: "Scene.s.Token.t1" }
+        ]
+      }));
+      // createSession() only whitelists a fixed set of fields (see session-store.js);
+      // currencyManual is set later via an updateSession mutator in real usage
+      // (loot-review.js), so seed it the same way here.
+      await updateSession(session.id, (draft) => { draft.currencyManual = true; });
+
+      const fakeActor = {
+        name: "Goblin",
+        system: { details: { biography: { value: "" }, type: { value: "humanoid" }, cr: 0.25 } },
+        getFlag: () => undefined
+      };
+      globalThis.fromUuid = async (uuid) => (uuid === "Scene.s.Token.t1" ? { actor: fakeActor } : null);
+
+      const updated = await rerollNpc(session.id, "t1");
+
+      expect(updated.currency).toEqual({ gp: 999 }); // untouched (manual)
+      expect(updated.npcs.find((n) => n.tokenId === "t1").npcCurrency).toEqual({}); // still updates
+    });
+  });
+
+  describe("FALLBACK path (no carried row, or fromUuid/actor resolution fails)", () => {
+    it("uses the npc row's stored tableId directly, skipping matchTable, when there is no carried row", async () => {
+      const { liveTable, storedTable } = await seedTables();
+      // A keyword rule that WOULD match "Goblin" if matchTable ran -- fallback path must ignore it.
+      await saveKeywordRules([
+        { id: "r1", pattern: "Goblin", matchType: "includes", tableId: liveTable.id, enabled: true }
+      ]);
+
+      const session = await createSession(baseSession({
+        npcs: [
+          { tokenId: "t1", actorName: "Goblin", img: "g.svg", cr: 0.25, tableSource: "type:humanoid", tableId: storedTable.id, included: true, defeated: true, npcCurrency: { gp: 1 } },
+          { tokenId: "t2", actorName: "Orc", img: "o.svg", cr: 1, tableSource: "type:humanoid", tableId: "type:humanoid", included: true, defeated: true, npcCurrency: { gp: 20 } }
+        ],
+        items: [
+          // no carried row for t1 at all
+          { id: "i-t2", name: "Axe", img: "a.svg", qty: 1, sourceNpc: "t2", state: "unclaimed", uuid: "Item.axe" }
+        ]
+      }));
+
+      globalThis.fromUuid = async () => { throw new Error("fromUuid should not be called on the fallback path"); };
+
+      const updated = await rerollNpc(session.id, "t1");
+
+      const t1Items = updated.items.filter((i) => i.sourceNpc === "t1" && !i.carried);
+      expect(t1Items).toHaveLength(1);
+      expect(t1Items[0].uuid).toBe("Item.storedFallback"); // from the STORED tableId, not the keyword rule
+
+      const t2Items = updated.items.filter((i) => i.sourceNpc === "t2");
+      expect(t2Items).toHaveLength(1);
+      expect(t2Items[0].id).toBe("i-t2");
+
+      expect(updated.currency).toEqual({ gp: 20 }); // t1's new {} + t2's {gp:20}
+    });
+
+    it("falls back to the stored tableId when the carried row's token no longer resolves (fromUuid -> null)", async () => {
+      const { storedTable } = await seedTables();
+
+      const session = await createSession(baseSession({
+        npcs: [
+          { tokenId: "t1", actorName: "Goblin", img: "g.svg", cr: 0.25, tableSource: "type:humanoid", tableId: storedTable.id, included: true, defeated: true, npcCurrency: { gp: 1 } },
+          { tokenId: "t2", actorName: "Orc", img: "o.svg", cr: 1, tableSource: "type:humanoid", tableId: "type:humanoid", included: true, defeated: true, npcCurrency: { gp: 20 } }
+        ],
+        items: [
+          { id: "i-carried", name: "Rusty knife", img: "k.svg", qty: 1, sourceNpc: "t1", state: "unclaimed", itemData: { name: "Rusty knife" }, carried: true, sourceTokenUuid: "Scene.s.Token.t1" },
+          { id: "i-t2", name: "Axe", img: "a.svg", qty: 1, sourceNpc: "t2", state: "unclaimed", uuid: "Item.axe" }
+        ]
+      }));
+
+      // Token gone: fromUuid resolves but returns null (deleted token).
+      globalThis.fromUuid = async () => null;
+
+      const updated = await rerollNpc(session.id, "t1");
+
+      const t1Items = updated.items.filter((i) => i.sourceNpc === "t1" && !i.carried);
+      expect(t1Items).toHaveLength(1);
+      expect(t1Items[0].uuid).toBe("Item.storedFallback");
+
+      const carried = updated.items.find((i) => i.id === "i-carried");
+      expect(carried).toMatchObject({ carried: true, sourceNpc: "t1" });
+    });
+
+    it("falls back to the stored tableId when the resolved token has no actor", async () => {
+      const { storedTable } = await seedTables();
+
+      const session = await createSession(baseSession({
+        npcs: [
+          { tokenId: "t1", actorName: "Goblin", img: "g.svg", cr: 0.25, tableSource: "type:humanoid", tableId: storedTable.id, included: true, defeated: true, npcCurrency: { gp: 1 } },
+          { tokenId: "t2", actorName: "Orc", img: "o.svg", cr: 1, tableSource: "type:humanoid", tableId: "type:humanoid", included: true, defeated: true, npcCurrency: { gp: 20 } }
+        ],
+        items: [
+          { id: "i-carried", name: "Rusty knife", img: "k.svg", qty: 1, sourceNpc: "t1", state: "unclaimed", itemData: { name: "Rusty knife" }, carried: true, sourceTokenUuid: "Scene.s.Token.t1" }
+        ]
+      }));
+
+      globalThis.fromUuid = async () => ({ actor: null }); // token exists but its actor is gone
+
+      const updated = await rerollNpc(session.id, "t1");
+
+      const t1Items = updated.items.filter((i) => i.sourceNpc === "t1" && !i.carried);
+      expect(t1Items).toHaveLength(1);
+      expect(t1Items[0].uuid).toBe("Item.storedFallback");
+    });
+
+    it("returns null and does not update the session when the npc row has no stored tableId and there is no live token", async () => {
+      await seedTables();
+      const session = await createSession(baseSession({
+        npcs: [
+          { tokenId: "t1", actorName: "Goblin", img: "g.svg", cr: 0.25, tableSource: null, tableId: null, included: true, defeated: true, npcCurrency: {} }
+        ],
+        items: [],
+        currency: {}
+      }));
+
+      const result = await rerollNpc(session.id, "t1");
+      expect(result).toBeNull();
+
+      const unchanged = getSession(session.id);
+      expect(unchanged.npcs[0].npcCurrency).toEqual({});
+    });
   });
 });

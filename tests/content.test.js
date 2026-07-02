@@ -20,7 +20,7 @@ describe("packs", () => {
   });
   it("all pack table entries are schema-valid", () => {
     for (const pack of [DND5E, SW5E]) {
-      const tables = [...Object.values(pack.typeTables), pack.fallbackTable];
+      const tables = [...Object.values(pack.typeTables), pack.fallbackTable, ...Object.values(pack.sharedTables ?? {})];
       for (const table of tables) for (const e of table.entries) {
         expect(e.weight).toBeGreaterThan(0);
         expect(["item", "currency", "table", "rolltable", "nothing"]).toContain(e.type);

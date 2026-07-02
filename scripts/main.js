@@ -1,4 +1,5 @@
 import { MODULE_ID, SETTINGS } from "./config.js";
+import { initEncounterHooks } from "./core/encounter-service.js";
 
 Hooks.once("init", () => {
   const s = game.settings;
@@ -13,4 +14,8 @@ Hooks.once("init", () => {
     s.register(MODULE_ID, key, { scope: "world", config: false, type: Object, default: {} });
   }
   s.register(MODULE_ID, SETTINGS.KEYWORD_RULES, { scope: "world", config: false, type: Object, default: { rules: [] } });
+});
+
+Hooks.once("ready", () => {
+  initEncounterHooks();
 });

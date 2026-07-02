@@ -170,6 +170,45 @@
       "ReleaseCardOpen": "Open loot window",
       "SceneControlName": "Loot Distribution"
     },
+    "Summary": {
+      "Title": "Loot Finalized",
+      "Nothing": "Nothing was granted.",
+      "Abandoned": "Abandoned",
+      "OpenHistory": "Open history"
+    },
+    "AssignTable": {
+      "Button": "Loot table",
+      "Title": "Assign loot table: {name}",
+      "Body": "Pick an existing loot table for this NPC, create a new one, or clear the current assignment.",
+      "Pick": "Pick existing…",
+      "Create": "Create new",
+      "Clear": "Clear",
+      "Cancel": "Cancel",
+      "NewTableName": "{name}'s loot",
+      "Assigned": "Loot table assigned to {name}.",
+      "Cleared": "Loot table assignment cleared for {name}."
+    },
+    "Tracker": {
+      "SkipLoot": "Skip loot",
+      "GenerateNow": "Generate loot now",
+      "GenerateNowDone": "Loot generated for this combat."
+    },
+    "History": {
+      "Title": "Loot History",
+      "MenuName": "Loot History",
+      "MenuLabel": "Open Loot History",
+      "MenuHint": "View finalized and discarded loot sessions, and revert the most recent finalize.",
+      "Empty": "No finalized or discarded loot sessions yet.",
+      "NothingGranted": "Nothing was granted in this session.",
+      "Status": {
+        "finalized": "Finalized",
+        "discarded": "Discarded"
+      },
+      "Revert": "Revert",
+      "RevertConfirmTitle": "Revert finalize",
+      "RevertConfirmBody": "Revert this finalized session? Created items will be deleted, granted currency subtracted, and carried gear restored where possible.",
+      "Close": "Close"
+    },
     "TableStore": {
       "InvalidJson": "The file is not valid JSON.",
       "SchemaMismatch": "The file does not match the expected export format.",

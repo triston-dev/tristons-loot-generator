@@ -14,12 +14,17 @@ let LootReviewApp;
 let DistributionApp;
 let partyCharacters;
 let syncOpenWindows;
+let HistoryApp;
+let assignFlow;
+let resolveActorFromListItem;
 
 beforeEach(async () => {
   installShim({ settings: { "tristons-loot-generator.contentPack": "dnd5e" } });
   ({ TableManagerApp, openTablePicker } = await import("../scripts/apps/table-manager.js?fresh=apps-smoke"));
   ({ LootReviewApp } = await import("../scripts/apps/loot-review.js?fresh=apps-smoke"));
   ({ DistributionApp, partyCharacters, syncOpenWindows } = await import("../scripts/apps/distribution.js?fresh=apps-smoke"));
+  ({ HistoryApp } = await import("../scripts/apps/history.js?fresh=apps-smoke"));
+  ({ assignFlow, resolveActorFromListItem } = await import("../scripts/apps/assign-table.js?fresh=apps-smoke"));
 });
 
 describe("TableManagerApp", () => {
@@ -222,5 +227,104 @@ describe("DistributionApp", () => {
       "utf8"
     );
     expect(source).not.toMatch(/[^.\w]updateSession\s*\(/);
+  });
+});
+
+describe("HistoryApp", () => {
+  it("imports cleanly and exposes DEFAULT_OPTIONS.actions", () => {
+    expect(HistoryApp).toBeTruthy();
+    expect(HistoryApp.DEFAULT_OPTIONS.actions).toBeTruthy();
+  });
+
+  it("every action in DEFAULT_OPTIONS.actions is a function (no typo'd handler names)", () => {
+    const actions = HistoryApp.DEFAULT_OPTIONS.actions;
+    const names = Object.keys(actions);
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      expect(typeof actions[name], `action "${name}" should map to a function`).toBe("function");
+    }
+  });
+
+  it("declares the expected action names", () => {
+    const names = Object.keys(HistoryApp.DEFAULT_OPTIONS.actions).sort();
+    expect(names).toEqual(["revert"].sort());
+  });
+
+  it("PARTS.body points at the module's history.hbs template", () => {
+    expect(HistoryApp.PARTS.body.template).toBe("modules/tristons-loot-generator/templates/history.hbs");
+  });
+
+  it("window options localize a title and DEFAULT_OPTIONS declare an id/classes", () => {
+    expect(HistoryApp.DEFAULT_OPTIONS.id).toBe("tlg-history");
+    expect(HistoryApp.DEFAULT_OPTIONS.classes).toContain("tlg");
+    expect(HistoryApp.DEFAULT_OPTIONS.window.title).toBe("TLG.History.Title");
+  });
+
+  it("constructor registers the singleton instance", () => {
+    const app = new HistoryApp();
+    expect(HistoryApp.instance).toBe(app);
+  });
+
+  it("close() clears the singleton instance", async () => {
+    const app = new HistoryApp();
+    expect(HistoryApp.instance).toBe(app);
+    await app.close();
+    expect(HistoryApp.instance).toBeNull();
+  });
+
+  it("open() reuses the existing instance instead of creating a new one", () => {
+    const first = HistoryApp.open();
+    const second = HistoryApp.open();
+    expect(second).toBe(first);
+  });
+
+  it("_prepareContext returns hasRows:false with no sessions", async () => {
+    const app = new HistoryApp();
+    const ctx = await app._prepareContext();
+    expect(ctx.hasRows).toBe(false);
+    expect(ctx.rows).toEqual([]);
+  });
+});
+
+describe("assign-table", () => {
+  it("exports assignFlow as a function", () => {
+    expect(typeof assignFlow).toBe("function");
+  });
+
+  it("assignFlow no-ops (does not throw) when called with no actor", async () => {
+    await expect(assignFlow(null)).resolves.toBeUndefined();
+  });
+
+  it("assignFlow returns without side effects when the dialog resolves null (shim DialogV2.wait)", async () => {
+    const actor = {
+      name: "Boss",
+      getFlag: () => null,
+      setFlag: async () => {
+        throw new Error("should not be called");
+      },
+      unsetFlag: async () => {
+        throw new Error("should not be called");
+      }
+    };
+    await expect(assignFlow(actor)).resolves.toBeUndefined();
+  });
+
+  it("exports resolveActorFromListItem as a function", () => {
+    expect(typeof resolveActorFromListItem).toBe("function");
+  });
+
+  it("resolveActorFromListItem returns null for a falsy element", () => {
+    expect(resolveActorFromListItem(null)).toBeNull();
+  });
+
+  it("resolveActorFromListItem resolves via dataset.entryId or dataset.documentId", async () => {
+    const actors = [{ id: "npc1", type: "npc", name: "Boss" }];
+    installShim({ settings: { "tristons-loot-generator.contentPack": "dnd5e" }, actors });
+    globalThis.game.actors.get = (id) => actors.find((a) => a.id === id) ?? null;
+    ({ resolveActorFromListItem } = await import("../scripts/apps/assign-table.js?fresh=assign-table-listitem"));
+
+    expect(resolveActorFromListItem({ dataset: { entryId: "npc1" } })).toEqual(actors[0]);
+    expect(resolveActorFromListItem({ dataset: { documentId: "npc1" } })).toEqual(actors[0]);
+    expect(resolveActorFromListItem({ dataset: {} })).toBeNull();
   });
 });

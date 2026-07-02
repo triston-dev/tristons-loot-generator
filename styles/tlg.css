@@ -648,6 +648,109 @@
   flex: 1;
 }
 
+/* ---------------------------------------------------------------------- */
+/* Combat tracker controls (Task 13)                                      */
+/* ---------------------------------------------------------------------- */
+
+.tlg-tracker-controls {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.tlg-tracker-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 1;
+}
+
+.tlg-tracker-skip.active {
+  background: var(--color-level-warning, #ff8000);
+  color: var(--color-light-1, #fff);
+}
+
+/* ---------------------------------------------------------------------- */
+/* History (Task 13)                                                      */
+/* ---------------------------------------------------------------------- */
+
+.tlg-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  overflow-y: auto;
+}
+
+.tlg-history-row {
+  border: 1px solid var(--color-border-light-tertiary, #782e22);
+  border-radius: 4px;
+  padding: 0.5rem;
+}
+
+.tlg-history-row-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tlg-history-name {
+  font-weight: bold;
+  flex: 1;
+}
+
+.tlg-history-date {
+  color: var(--color-text-subtle, var(--color-text-secondary));
+  font-size: var(--font-size-12, 12px);
+}
+
+.tlg-history-badge {
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font-size: var(--font-size-11, 11px);
+  font-weight: bold;
+}
+
+.tlg-history-badge--finalized {
+  background: var(--color-level-success, #33dd00);
+  color: var(--color-light-1, #fff);
+}
+
+.tlg-history-badge--discarded {
+  background: var(--color-level-error, #dd0000);
+  color: var(--color-light-1, #fff);
+}
+
+.tlg-history-actors {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+}
+
+.tlg-history-items {
+  margin: 0.15rem 0;
+  padding-left: 1.2rem;
+}
+
+.tlg-history-currency {
+  margin: 0.15rem 0;
+}
+
+.tlg-history-empty {
+  color: var(--color-text-subtle, var(--color-text-secondary));
+  font-style: italic;
+  margin: 0.35rem 0 0;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Assign-table dialog (Task 13)                                          */
+/* ---------------------------------------------------------------------- */
+
+.tlg-assign-table p {
+  margin: 0;
+}
+
 .tlg-item-row {
   display: flex;
   align-items: center;

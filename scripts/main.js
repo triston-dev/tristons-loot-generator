@@ -1,10 +1,12 @@
-import { MODULE_ID, SETTINGS } from "./config.js";
-import { initEncounterHooks, setOnCaptured } from "./core/encounter-service.js";
+import { MODULE_ID, SETTINGS, FLAGS } from "./config.js";
+import { initEncounterHooks, setOnCaptured, generateNow } from "./core/encounter-service.js";
 import { initSocket } from "./core/socket-service.js";
 import { getSessions } from "./core/session-store.js";
 import { TableManagerApp } from "./apps/table-manager.js";
 import { LootReviewApp } from "./apps/loot-review.js";
 import { DistributionApp, syncOpenWindows, lastKnownStatus } from "./apps/distribution.js";
+import { assignFlow, resolveActorFromListItem } from "./apps/assign-table.js";
+import { HistoryApp } from "./apps/history.js";
 
 Hooks.once("init", () => {
   const s = game.settings;
@@ -41,6 +43,15 @@ Hooks.once("init", () => {
     hint: "TLG.TableManager.MenuHint",
     icon: "fas fa-list",
     type: TableManagerApp,
+    restricted: true
+  });
+
+  s.registerMenu(MODULE_ID, "history", {
+    name: "TLG.History.MenuName",
+    label: "TLG.History.MenuLabel",
+    hint: "TLG.History.MenuHint",
+    icon: "fas fa-clock-rotate-left",
+    type: HistoryApp,
     restricted: true
   });
 });
@@ -80,11 +91,96 @@ Hooks.on("renderChatMessageHTML", (_message, html) => {
   html.querySelector("[data-tlg-open]")?.addEventListener("click", (event) => {
     DistributionApp.open(event.currentTarget.dataset.tlgOpen);
   });
-  // Task 13 will open a GM history dialog here; until then, no-op so the
-  // button doesn't throw when clicked.
   html.querySelector('[data-tlg-action="open-history"]')?.addEventListener("click", () => {
-    console.log("TLG | open-history clicked — implemented in Task 13");
+    if (!game.user.isGM) return;
+    HistoryApp.open();
   });
+});
+
+// NPC sheet header button (v13 header-controls hook). If this hook name
+// proves wrong at live verification, the actor-directory context menu below
+// is the guaranteed path (Task 14 verifies both).
+Hooks.on("getHeaderControlsActorSheetV2", (sheet, controls) => {
+  if (!game.user.isGM) return;
+  if (sheet.document?.type !== "npc") return;
+  controls.push({
+    icon: "fa-solid fa-coins",
+    label: "TLG.AssignTable.Button",
+    action: "tlgAssignTable",
+    onClick: () => assignFlow(sheet.document)
+  });
+});
+
+// Actor directory context menu — guaranteed path for boss-table assignment
+// regardless of whether the header-controls hook name above is correct.
+Hooks.on("getActorContextOptions", (_app, options) => {
+  options.push({
+    name: "TLG.AssignTable.Button",
+    icon: '<i class="fa-solid fa-coins"></i>',
+    condition: (li) => {
+      if (!game.user.isGM) return false;
+      const actor = resolveActorFromListItem(li instanceof HTMLElement ? li : li?.[0]);
+      return actor?.type === "npc";
+    },
+    callback: (li) => {
+      const actor = resolveActorFromListItem(li instanceof HTMLElement ? li : li?.[0]);
+      if (actor) assignFlow(actor);
+    }
+  });
+});
+
+// Combat tracker controls: "Skip loot" toggle + "Generate loot now" button,
+// injected into the tracker footer. Guarded against duplicate injection
+// since renderCombatTracker fires often.
+Hooks.on("renderCombatTracker", (_app, html) => {
+  if (!game.user.isGM) return;
+  const root = html instanceof HTMLElement ? html : html?.[0];
+  if (!root) return;
+  if (root.querySelector(".tlg-tracker-controls")) return;
+
+  const footer =
+    root.querySelector(".combat-tracker-footer") ??
+    root.querySelector(".directory-footer") ??
+    root.querySelector("footer");
+
+  if (!footer) {
+    console.debug("TLG | renderCombatTracker: no footer element found to inject tracker controls into");
+    return;
+  }
+
+  const combat = game.combat;
+  const skipActive = combat ? Boolean(combat.getFlag(MODULE_ID, FLAGS.SKIP)) : false;
+
+  const row = document.createElement("div");
+  row.className = "tlg-tracker-controls";
+
+  const skipBtn = document.createElement("button");
+  skipBtn.type = "button";
+  skipBtn.className = "tlg-tracker-skip";
+  skipBtn.disabled = !combat;
+  skipBtn.classList.toggle("active", skipActive);
+  if (skipActive) skipBtn.setAttribute("aria-pressed", "true");
+  skipBtn.innerHTML = `<i class="fas fa-ban"></i> ${game.i18n.localize("TLG.Tracker.SkipLoot")}`;
+  skipBtn.addEventListener("click", async () => {
+    if (!game.combat) return;
+    const next = !game.combat.getFlag(MODULE_ID, FLAGS.SKIP);
+    if (next) await game.combat.setFlag(MODULE_ID, FLAGS.SKIP, true);
+    else await game.combat.unsetFlag(MODULE_ID, FLAGS.SKIP);
+  });
+
+  const generateBtn = document.createElement("button");
+  generateBtn.type = "button";
+  generateBtn.className = "tlg-tracker-generate";
+  generateBtn.disabled = !combat;
+  generateBtn.innerHTML = `<i class="fas fa-dice"></i> ${game.i18n.localize("TLG.Tracker.GenerateNow")}`;
+  generateBtn.addEventListener("click", async () => {
+    if (!game.combat) return;
+    await generateNow(game.combat);
+    ui.notifications.info(game.i18n.localize("TLG.Tracker.GenerateNowDone"));
+  });
+
+  row.append(skipBtn, generateBtn);
+  footer.appendChild(row);
 });
 
 Hooks.on("getSceneControlButtons", (controls) => {

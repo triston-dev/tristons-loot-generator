@@ -48,7 +48,7 @@ export function evaluateDice(formula, data = {}, rng = Math.random) {
     return v;
   }
   const out = expr();
-  if (i !== tokens.length || Number.isNaN(out)) throw new Error("TLG.Dice.Invalid");
+  if (i !== tokens.length || !Number.isFinite(out)) throw new Error("TLG.Dice.Invalid");
   return Math.max(0, Math.floor(out));
 }
 

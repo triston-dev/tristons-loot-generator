@@ -16,6 +16,7 @@ describe("evaluateDice", () => {
   it("never returns negatives", () => expect(evaluateDice("1 - 5")).toBe(0));
   it("throws on garbage", () => expect(() => evaluateDice("2d6; alert(1)")).toThrow());
   it("throws on d0 and 0 dice cap", () => expect(() => evaluateDice("1d0")).toThrow());
+  it("throws on division by zero", () => expect(() => evaluateDice("1/0")).toThrow());
 });
 
 describe("validateDice", () => {

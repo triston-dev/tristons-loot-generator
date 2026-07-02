@@ -607,9 +607,14 @@ async function openRulesEditorDialog() {
 }
 
 // ---------------------------------------------------------------------------
-// openTablePicker: reusable DialogV2 table picker for Task 13's boss-assign flow.
-// ---------------------------------------------------------------------------
-
+/**
+ * openTablePicker: reusable DialogV2 table picker for Task 13's boss-assign flow.
+ *
+ * Return contract:
+ * - undefined: user cancelled the dialog
+ * - "": user explicitly picked "(none)" to clear/not assign
+ * - "<tableId>": user picked an existing table (RollTable ID string)
+ */
 export async function openTablePicker(current) {
   const tables = listTables();
   const options = [
@@ -636,8 +641,7 @@ export async function openTablePicker(current) {
       },
       { action: "cancel", label: game.i18n.localize("TLG.TableManager.Cancel") }
     ]
-  }).catch(() => null);
+  }).catch(() => undefined);
 
-  if (!result) return null;
-  return result || null;
+  return result;
 }

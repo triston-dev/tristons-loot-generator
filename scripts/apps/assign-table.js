@@ -56,13 +56,15 @@ export async function assignFlow(actor) {
 
   if (choice === "pick") {
     const tableId = await openTablePicker(current);
-    if (tableId === null) return;
-    if (tableId) {
-      await actor.setFlag(MODULE_ID, FLAGS.TABLE, tableId);
-      ui.notifications.info(game.i18n.format("TLG.AssignTable.Assigned", { name: actor.name }));
-    } else {
+    if (tableId === undefined) return; // user cancelled the picker
+    if (tableId === "") {
+      // user explicitly picked "(none)"
       await actor.unsetFlag(MODULE_ID, FLAGS.TABLE);
       ui.notifications.info(game.i18n.format("TLG.AssignTable.Cleared", { name: actor.name }));
+    } else {
+      // user picked a table
+      await actor.setFlag(MODULE_ID, FLAGS.TABLE, tableId);
+      ui.notifications.info(game.i18n.format("TLG.AssignTable.Assigned", { name: actor.name }));
     }
     return;
   }

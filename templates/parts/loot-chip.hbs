@@ -1,0 +1,8 @@
+<span class="tlg-chip {{#if carried}}tlg-chip--carried{{/if}}" data-item-id="{{item.id}}">
+  {{#if item.img}}<img src="{{item.img}}" alt="">{{/if}}
+  <span class="tlg-chip-name">{{item.name}}</span>
+  <input type="number" class="tlg-chip-qty" value="{{item.qty}}" min="1" step="1">
+  <button type="button" class="tlg-chip-remove" data-action="removeItem" data-item-id="{{item.id}}" title="{{localize 'TLG.LootReview.RemoveItem'}}">
+    <i class="fas fa-times"></i>
+  </button>
+</span>

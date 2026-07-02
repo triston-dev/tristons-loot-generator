@@ -161,6 +161,37 @@ describe("isFullyResolved", () => {
   });
 });
 
+describe("recomputeCurrency", () => {
+  it("sums npcCurrency only from INCLUDED npc rows", () => {
+    const session = {
+      npcs: [
+        makeNpc({ tokenId: "npc1", included: true, npcCurrency: { gp: 5 } }),
+        makeNpc({ tokenId: "npc2", included: false, npcCurrency: { gp: 100 } })
+      ]
+    };
+    expect(SS.recomputeCurrency(session)).toEqual({ gp: 5 });
+  });
+
+  it("sums per-denom across multiple included rows", () => {
+    const session = {
+      npcs: [
+        makeNpc({ tokenId: "npc1", included: true, npcCurrency: { gp: 5, sp: 2 } }),
+        makeNpc({ tokenId: "npc2", included: true, npcCurrency: { gp: 3 } })
+      ]
+    };
+    expect(SS.recomputeCurrency(session)).toEqual({ gp: 8, sp: 2 });
+  });
+
+  it("npc rows without npcCurrency are treated as contributing nothing", () => {
+    const session = { npcs: [makeNpc({ tokenId: "npc1", included: true, npcCurrency: undefined })] };
+    expect(SS.recomputeCurrency(session)).toEqual({});
+  });
+
+  it("no npcs -> empty currency", () => {
+    expect(SS.recomputeCurrency({ npcs: [] })).toEqual({});
+  });
+});
+
 describe("releaseSession", () => {
   it("drops items whose sourceNpc is excluded, sets status released", async () => {
     const s = await SS.createSession({

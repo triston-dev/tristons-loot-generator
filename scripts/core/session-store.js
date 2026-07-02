@@ -86,6 +86,26 @@ export async function updateSession(id, mutator) {
   return clone(draft);
 }
 
+/**
+ * Sums npcCurrency across INCLUDED npc rows only — the same summing rule
+ * buildSessionData applies at capture time. Pure: takes/returns plain data,
+ * no game.settings access. Callers (toggleNpc, rerollNpc, rerollAll in
+ * loot-review.js) use this to keep session.currency in sync with npcs[]
+ * WITHOUT re-rolling, unless the GM has manually edited the currency row
+ * (session.currencyManual === true), in which case callers should skip
+ * calling this and leave the GM's explicit values alone.
+ */
+export function recomputeCurrency(session) {
+  const currency = {};
+  for (const npc of session.npcs ?? []) {
+    if (!npc.included) continue;
+    for (const [denom, amount] of Object.entries(npc.npcCurrency ?? {})) {
+      currency[denom] = (currency[denom] ?? 0) + amount;
+    }
+  }
+  return currency;
+}
+
 export async function releaseSession(id) {
   const map = getSessionsMap();
   const existing = map[id];

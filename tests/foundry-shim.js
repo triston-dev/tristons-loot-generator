@@ -48,6 +48,7 @@ export function installShim({ modules = {}, settings = {}, user = {}, users = []
           static DEFAULT_OPTIONS = {};
           static PARTS = {};
           render() { return this; }
+          close() { return this; }
         },
         HandlebarsApplicationMixin: (Base) => Base,
         DialogV2: class {

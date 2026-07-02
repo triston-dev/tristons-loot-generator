@@ -112,6 +112,27 @@
       "Delete": "Delete",
       "Revert": "Revert"
     },
+    "LootReview": {
+      "Title": "Loot Review",
+      "SessionMissing": "This loot session no longer exists.",
+      "CarriedGearToggle": "Include carried gear",
+      "RerollAll": "Reroll all",
+      "RerollAllConfirmTitle": "Reroll all",
+      "RerollAllConfirmBody": "Reroll generated loot for every included NPC? Carried gear is unaffected.",
+      "RerollNpc": "Reroll this NPC's loot",
+      "CrLabel": "CR",
+      "AddItem": "Add item",
+      "RemoveItem": "Remove item",
+      "ItemCount": "Items",
+      "Discard": "Discard",
+      "DiscardConfirmTitle": "Discard session",
+      "DiscardConfirmBody": "Discard this loot session? This cannot be undone.",
+      "Release": "Release to players",
+      "SearchPlaceholder": "Search items…",
+      "DropHint": "Or drag an item here",
+      "AddItemTitle": "Add item",
+      "Close": "Close"
+    },
     "TableStore": {
       "InvalidJson": "The file is not valid JSON.",
       "SchemaMismatch": "The file does not match the expected export format.",

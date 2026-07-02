@@ -1,7 +1,8 @@
 import { MODULE_ID, SETTINGS } from "./config.js";
-import { initEncounterHooks } from "./core/encounter-service.js";
+import { initEncounterHooks, setOnCaptured } from "./core/encounter-service.js";
 import { initSocket } from "./core/socket-service.js";
 import { TableManagerApp } from "./apps/table-manager.js";
+import { LootReviewApp } from "./apps/loot-review.js";
 
 Hooks.once("init", () => {
   const s = game.settings;
@@ -34,8 +35,17 @@ Hooks.once("ready", () => {
   initSocket();
   initEncounterHooks();
 
+  // Loot Review opens automatically when a combat capture produces a pending
+  // session and the GM review gate is on — captureSession() in
+  // encounter-service.js only invokes this callback when the gate is on, so
+  // no setting check is needed here.
+  setOnCaptured((session) => {
+    new LootReviewApp({ sessionId: session.id }).render(true);
+  });
+
   foundry.applications.handlebars.loadTemplates([
-    `modules/${MODULE_ID}/templates/parts/entry-row.hbs`
+    `modules/${MODULE_ID}/templates/parts/entry-row.hbs`,
+    `modules/${MODULE_ID}/templates/parts/loot-chip.hbs`
   ]);
 });
 

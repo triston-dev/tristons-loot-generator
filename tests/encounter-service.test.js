@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildSessionData } from "../scripts/core/encounter-service.js";
+import { buildSessionData, applyReroll } from "../scripts/core/encounter-service.js";
 
 const opts = (over = {}) => ({ hostileDisposition: -1, name: "Goblin ambush", carriedEnabled: true, ...over });
 
@@ -55,7 +55,7 @@ describe("buildSessionData", () => {
     expect(data.npcs).toHaveLength(2);
   });
 
-  it("npc row shape: tokenId, actorName, img, cr, tableSource, included, defeated", () => {
+  it("npc row shape: tokenId, actorName, img, cr, tableSource, tableId, included, defeated, npcCurrency", () => {
     const data = buildSessionData(
       [snap({ rolled: { items: [], currency: {}, tableSource: "type:humanoid", tableId: "type:humanoid" } })],
       opts()
@@ -66,14 +66,17 @@ describe("buildSessionData", () => {
       img: "icons/goblin.svg",
       cr: 0.25,
       tableSource: "type:humanoid",
+      tableId: "type:humanoid",
       included: true,
-      defeated: true
+      defeated: true,
+      npcCurrency: {}
     });
   });
 
-  it("npc row tableSource is null when rolled is null", () => {
+  it("npc row tableSource/tableId are null when rolled is null", () => {
     const data = buildSessionData([snap({ rolled: null })], opts());
     expect(data.npcs[0].tableSource).toBeNull();
+    expect(data.npcs[0].tableId).toBeNull();
   });
 
   it("generated rolled items land in items[] carried through from any snapshot, included or not", () => {
@@ -136,6 +139,26 @@ describe("buildSessionData", () => {
       opts()
     );
     expect(data.currency).toEqual({ gp: 8, sp: 2 });
+  });
+
+  it("npc row stores its own npcCurrency regardless of included", () => {
+    const data = buildSessionData(
+      [
+        snap({ tokenId: "t1", disposition: -1, hp: 0, rolled: { items: [], currency: { gp: 5 }, tableSource: "type:humanoid", tableId: "type:humanoid" } }), // included
+        snap({ tokenId: "t2", disposition: -1, hp: 5, defeatedStatus: false, rolled: { items: [], currency: { gp: 100 }, tableSource: "type:humanoid", tableId: "type:humanoid" } }) // not included (alive)
+      ],
+      opts()
+    );
+    expect(data.npcs.find((n) => n.tokenId === "t1").npcCurrency).toEqual({ gp: 5 });
+    // npcCurrency is recorded even though this npc row is not included in session.currency
+    expect(data.npcs.find((n) => n.tokenId === "t2").npcCurrency).toEqual({ gp: 100 });
+    // session.currency (summed) still only reflects INCLUDED rows
+    expect(data.currency).toEqual({ gp: 5 });
+  });
+
+  it("npc row npcCurrency defaults to {} when rolled has no currency", () => {
+    const data = buildSessionData([snap({ rolled: null })], opts());
+    expect(data.npcs[0].npcCurrency).toEqual({});
   });
 
   it("unlinked tokens: two snapshots sharing actorName but different tokenId produce separate npc rows and separate items", () => {
@@ -213,5 +236,99 @@ describe("buildSessionData", () => {
       opts()
     );
     expect(data.items[0].qty).toBe(1);
+  });
+});
+
+describe("applyReroll", () => {
+  function makeSession(over = {}) {
+    return {
+      npcs: [
+        { tokenId: "t1", actorName: "Goblin", img: "i.svg", cr: 0.25, tableSource: "type:humanoid", tableId: "type:humanoid", included: true, defeated: true, npcCurrency: { gp: 5 } },
+        { tokenId: "t2", actorName: "Orc", img: "o.svg", cr: 1, tableSource: "type:humanoid", tableId: "type:humanoid", included: true, defeated: true, npcCurrency: { gp: 10 } }
+      ],
+      items: [
+        { id: "i1", name: "Dagger", img: "d.svg", qty: 1, sourceNpc: "t1", state: "unclaimed", uuid: "u1" },
+        { id: "i2", name: "Rusty Sword", img: "r.svg", qty: 1, sourceNpc: "t1", state: "unclaimed", itemData: { name: "Rusty Sword" }, carried: true, sourceTokenUuid: "Scene.s.Token.t1" },
+        { id: "i3", name: "Axe", img: "a.svg", qty: 1, sourceNpc: "t2", state: "unclaimed", uuid: "u2" }
+      ],
+      currency: { gp: 15 },
+      currencyManual: false,
+      ...over
+    };
+  }
+
+  const rolled = (over = {}) => ({ items: [{ uuid: "u9", name: "Longsword", img: "l.svg", qty: 2 }], currency: { gp: 7 }, ...over });
+
+  it("replaces the NPC's generated (non-carried) items with the freshly rolled ones", () => {
+    const draft = applyReroll(makeSession(), "t1", rolled());
+    const t1Items = draft.items.filter((i) => i.sourceNpc === "t1");
+    expect(t1Items).toHaveLength(2); // carried kept + 1 new generated
+    expect(t1Items.some((i) => i.name === "Dagger")).toBe(false); // old generated item gone
+    expect(t1Items.some((i) => i.name === "Longsword")).toBe(true);
+  });
+
+  it("leaves carried items for that NPC untouched", () => {
+    const draft = applyReroll(makeSession(), "t1", rolled());
+    const carried = draft.items.find((i) => i.id === "i2");
+    expect(carried).toMatchObject({ name: "Rusty Sword", carried: true, sourceNpc: "t1" });
+  });
+
+  it("leaves other NPCs' items untouched", () => {
+    const draft = applyReroll(makeSession(), "t1", rolled());
+    const t2Items = draft.items.filter((i) => i.sourceNpc === "t2");
+    expect(t2Items).toHaveLength(1);
+    expect(t2Items[0].name).toBe("Axe");
+  });
+
+  it("new item rows get fresh ids distinct from any prior row", () => {
+    const draft = applyReroll(makeSession(), "t1", rolled());
+    const newItem = draft.items.find((i) => i.name === "Longsword");
+    expect(newItem.id).toBeTruthy();
+    expect(["i1", "i2", "i3"]).not.toContain(newItem.id);
+  });
+
+  it("updates the NPC row's npcCurrency to the rerolled amount", () => {
+    const draft = applyReroll(makeSession(), "t1", rolled({ currency: { gp: 7 } }));
+    expect(draft.npcs.find((n) => n.tokenId === "t1").npcCurrency).toEqual({ gp: 7 });
+  });
+
+  it("recomputes session.currency from all included npc rows (sums t1's new + t2's unchanged)", () => {
+    const draft = applyReroll(makeSession(), "t1", rolled({ currency: { gp: 7 } }));
+    expect(draft.currency).toEqual({ gp: 17 }); // 7 (t1 new) + 10 (t2 unchanged)
+  });
+
+  it("does NOT recompute session.currency when currencyManual is true (GM edited the pot)", () => {
+    const draft = applyReroll(makeSession({ currencyManual: true, currency: { gp: 999 } }), "t1", rolled({ currency: { gp: 7 } }));
+    expect(draft.currency).toEqual({ gp: 999 });
+    // npcCurrency still updates even though the summed pot is left alone
+    expect(draft.npcs.find((n) => n.tokenId === "t1").npcCurrency).toEqual({ gp: 7 });
+  });
+
+  it("rerolling an excluded npc still swaps its items/currency but session.currency excludes it either way", () => {
+    const session = makeSession();
+    session.npcs[0].included = false;
+    const draft = applyReroll(session, "t1", rolled({ currency: { gp: 7 } }));
+    expect(draft.npcs.find((n) => n.tokenId === "t1").npcCurrency).toEqual({ gp: 7 });
+    expect(draft.currency).toEqual({ gp: 10 }); // only t2 (included)
+  });
+
+  it("does not mutate the input session (returns a new object)", () => {
+    const session = makeSession();
+    const before = JSON.parse(JSON.stringify(session));
+    applyReroll(session, "t1", rolled());
+    expect(session).toEqual(before);
+  });
+
+  it("unknown tokenId leaves the session's npcs/items/currency unchanged", () => {
+    const session = makeSession();
+    const draft = applyReroll(session, "nope", rolled());
+    expect(draft.npcs).toEqual(session.npcs);
+    expect(draft.items).toEqual(session.items);
+    expect(draft.currency).toEqual(session.currency);
+  });
+
+  it("rerolled item rows omit currency-only entries (only items[] entries land in items)", () => {
+    const draft = applyReroll(makeSession(), "t1", rolled({ items: [], currency: { gp: 3 } }));
+    expect(draft.items.filter((i) => i.sourceNpc === "t1" && !i.carried)).toHaveLength(0);
   });
 });

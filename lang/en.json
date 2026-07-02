@@ -227,6 +227,9 @@
     "Dice": {
       "Invalid": "Invalid dice formula."
     },
+    "Encounter": {
+      "UnresolvedRefs": "Unresolved loot refs dropped: {refs}"
+    },
     "Intent": {
       "SessionNotReleased": "This loot session is not open for claims right now.",
       "UnknownAction": "That action is not recognized.",

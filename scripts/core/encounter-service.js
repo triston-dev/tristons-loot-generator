@@ -358,7 +358,7 @@ export async function captureSession(combat) {
   }
 
   if (unresolvedRefs.length) {
-    ui.notifications.warn(`${"TLG"} | unresolved loot refs dropped: ${unresolvedRefs.join(", ")}`);
+    ui.notifications.warn(game.i18n.format("TLG.Encounter.UnresolvedRefs", { refs: unresolvedRefs.join(", ") }));
   }
 
   const data = buildSessionData(snapshots, {
@@ -432,7 +432,7 @@ export async function rerollNpc(sessionId, tokenId) {
   const rawResult = await rollByTableId(tableId, cr, pack);
   const { resolved, unresolved } = await resolveRolledItems(rawResult.items, pack);
   if (unresolved.length) {
-    ui.notifications.warn(`${"TLG"} | unresolved loot refs dropped: ${unresolved.join(", ")}`);
+    ui.notifications.warn(game.i18n.format("TLG.Encounter.UnresolvedRefs", { refs: unresolved.join(", ") }));
   }
 
   return updateSession(sessionId, (draft) => {

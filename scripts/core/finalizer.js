@@ -183,7 +183,7 @@ export async function finalizeSession(sessionId) {
 
   const session = getSession(sessionId);
   if (!session || session.status !== "released" || !isFullyResolved(session)) {
-    ui.notifications.warn("TLG.Finalize.NotResolved");
+    ui.notifications.warn(game.i18n.localize("TLG.Finalize.NotResolved"));
     return;
   }
 
@@ -327,7 +327,7 @@ export async function finalizeSession(sessionId) {
   }
 
   if (failedActors.length) {
-    ui.notifications.warn(`TLG.Finalize.PartialFailure: ${failedActors.join(", ")}`);
+    ui.notifications.warn(game.i18n.format("TLG.Finalize.PartialFailure", { actors: failedActors.join(", ") }));
   }
 
   const actorNames = {};
@@ -354,13 +354,13 @@ export async function revertSession(sessionId) {
 
   const session = getSession(sessionId);
   if (!session || session.status !== "finalized") {
-    ui.notifications.warn("TLG.Revert.NotFinalized");
+    ui.notifications.warn(game.i18n.localize("TLG.Revert.NotFinalized"));
     return;
   }
 
   const [mostRecent] = getSessions(["finalized"]);
   if (!mostRecent || mostRecent.id !== sessionId) {
-    ui.notifications.warn("TLG.Revert.NotMostRecent");
+    ui.notifications.warn(game.i18n.localize("TLG.Revert.NotMostRecent"));
     return;
   }
 
@@ -408,7 +408,7 @@ export async function revertSession(sessionId) {
   });
 
   if (missingItemNames.length) {
-    ui.notifications.warn(`TLG.Revert.MissingItems: ${missingItemNames.join(", ")}`);
+    ui.notifications.warn(game.i18n.format("TLG.Revert.MissingItems", { items: missingItemNames.join(", ") }));
   }
-  ui.notifications.info("TLG.Revert.Success");
+  ui.notifications.info(game.i18n.localize("TLG.Revert.Success"));
 }

@@ -173,4 +173,21 @@ describe("additional coverage", () => {
     expect(TS.getEffectiveTable(c.id)).toBeTruthy();
     expect(TS.getEffectiveTable("custom:d")).toBeNull();
   });
+
+  it("import rejects a payload whose packId does not match the active pack", async () => {
+    const before = TS.exportData();
+
+    const payload = {
+      format: 1,
+      packId: "sw5e",
+      overrides: { "type:humanoid": { id: "type:humanoid", name: "Hijacked", rolls: "1", entries: [] } },
+      customs: {},
+      rules: []
+    };
+    await expect(TS.importData(JSON.stringify(payload))).rejects.toThrow(/TLG\.TableStore\.PackMismatch/);
+
+    // Store must be unchanged.
+    expect(TS.exportData()).toBe(before);
+    expect(TS.getEffectiveTable("type:humanoid").name).toBe("Humanoid");
+  });
 });

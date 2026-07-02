@@ -10,12 +10,33 @@ let buildEvenSplitPreview;
 let buildClaimChoices;
 let validateManualAllocation;
 let buildAllocationSummary;
+let computeProgressPct;
 
 beforeEach(async () => {
   installShim({ settings: { "tristons-loot-generator.contentPack": "dnd5e" } });
-  ({ escapeHTML, buildEvenSplitPreview, buildClaimChoices, validateManualAllocation, buildAllocationSummary } = await import(
+  ({ escapeHTML, buildEvenSplitPreview, buildClaimChoices, validateManualAllocation, buildAllocationSummary, computeProgressPct } = await import(
     "../scripts/apps/distribution.js?fresh=distribution-pure"
   ));
+});
+
+describe("computeProgressPct", () => {
+  it("computes a true percentage instead of string-concatenating a zero", () => {
+    // Regression: `${resolved}0%` in the template produced 30% for
+    // resolved=3 regardless of total. 3/10 must be 30%, not coincidentally
+    // equal to the buggy output — verify against a total where the bug and
+    // the fix diverge.
+    expect(computeProgressPct(3, 10)).toBe(30);
+    expect(computeProgressPct(3, 4)).toBe(75);
+    expect(computeProgressPct(1, 3)).toBe(33);
+  });
+
+  it("returns 0 for an empty session (total === 0) instead of NaN", () => {
+    expect(computeProgressPct(0, 0)).toBe(0);
+  });
+
+  it("returns 100 when fully resolved", () => {
+    expect(computeProgressPct(5, 5)).toBe(100);
+  });
 });
 
 describe("escapeHTML", () => {

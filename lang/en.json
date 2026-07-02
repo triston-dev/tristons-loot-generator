@@ -213,6 +213,7 @@
       "InvalidJson": "The file is not valid JSON.",
       "SchemaMismatch": "The file does not match the expected export format.",
       "InvalidTable": "A table in the file failed validation.",
+      "PackMismatch": "This file was exported from a different content pack and cannot be imported here.",
       "Validate": {
         "NotAnObject": "Table is not a valid object.",
         "BadRollsFormula": "Invalid rolls formula.",
@@ -225,6 +226,34 @@
     },
     "Dice": {
       "Invalid": "Invalid dice formula."
+    },
+    "Intent": {
+      "SessionNotReleased": "This loot session is not open for claims right now.",
+      "UnknownAction": "That action is not recognized.",
+      "ItemNotFound": "That item is no longer part of this session.",
+      "ActorNotInParty": "That character is not part of the party.",
+      "ItemNotClaimable": "That item can't be claimed right now.",
+      "ItemNotUnclaimable": "That item can't be unclaimed right now.",
+      "ItemNotAbandonable": "That item can't be abandoned right now.",
+      "ItemNotRestorable": "That item can't be restored right now.",
+      "AllocationActorNotInParty": "One or more recipients in that allocation are not part of the party.",
+      "BadAllocation": "Allocation amounts must be whole, non-negative numbers.",
+      "AllocationMismatch": "The allocation does not sum to the pot amount.",
+      "UnexpectedError": "Something went wrong processing that action. Please try again."
+    },
+    "Finalize": {
+      "NotResolved": "Not everything is resolved yet. Claim, give, or abandon the rest before finalizing.",
+      "PartialFailure": "Some grants could not be applied for: {actors}. Check the log for details."
+    },
+    "Revert": {
+      "NotFinalized": "This session has not been finalized and cannot be reverted.",
+      "NotMostRecent": "Only the most recently finalized session can be reverted.",
+      "MissingItems": "Some granted items could not be removed (already deleted or moved): {items}.",
+      "Success": "The finalized session was reverted."
+    },
+    "SessionStore": {
+      "UnknownSession": "That loot session no longer exists ({id}).",
+      "IllegalTransition": "That loot session cannot move from \"{from}\" to \"{to}\"."
     }
   }
 }

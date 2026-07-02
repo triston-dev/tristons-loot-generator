@@ -166,6 +166,15 @@ export async function importData(json) {
   if (typeof data.customs !== "object" || data.customs === null) throw new Error("TLG.TableStore.SchemaMismatch");
   if (!Array.isArray(data.rules)) throw new Error("TLG.TableStore.SchemaMismatch");
 
+  // The post-import id-universe below is built from the CURRENT active pack's
+  // type/shared/fallback tables. A payload authored for a different pack
+  // would validate its `type:`/`shared:`/`fallback` nested-table references
+  // against the wrong pack's table ids, and its overrides would be written
+  // under a pack id that doesn't match the universe just validated against.
+  // Reject the mismatch up front, before any validation or writes.
+  const pack = getActivePack();
+  if (data.packId !== pack.id) throw new Error("TLG.TableStore.PackMismatch");
+
   // Nested `type: "table"` references must resolve against the universe of ids
   // that will exist AFTER this import is applied, not the current (pre-import)
   // store. Otherwise: (a) a custom table referencing a sibling custom table in
@@ -173,7 +182,6 @@ export async function importData(json) {
   // (b) a payload that drops a currently-stored custom table which it still
   // references would pass (stale reference resolves against old state) but
   // dangle immediately after import.
-  const pack = getActivePack();
   const postImportIds = new Set([
     ...Object.keys(data.customs),
     ...Object.keys(data.overrides),

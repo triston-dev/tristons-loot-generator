@@ -80,6 +80,18 @@ export function buildEvenSplitPreview(currency, partyCount, denominations, i18n 
 }
 
 /**
+ * Computes the progress-bar fill percentage from resolved/total counts.
+ * Pure. Guards against total === 0 (empty session) to avoid a NaN/divide-by-zero.
+ *
+ * @param {number} resolved
+ * @param {number} total
+ * @returns {number} integer percentage 0-100
+ */
+export function computeProgressPct(resolved, total) {
+  return total ? Math.round((resolved / total) * 100) : 0;
+}
+
+/**
  * Builds the choice list for a claim/give picker DialogV2: one entry per
  * candidate party character. Pure — takes the pre-resolved party character
  * list (already {uuid,name,img,ownerUserIds}) and an optional filter of
@@ -338,6 +350,7 @@ export class DistributionApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     const { resolved, total } = resolveCounts(session);
+    const progressPct = computeProgressPct(resolved, total);
     const isGM = Boolean(game.user.isGM);
     const isPrimary = isPrimaryGM();
     const noGM = !game.users.activeGM;
@@ -359,6 +372,7 @@ export class DistributionApp extends HandlebarsApplicationMixin(ApplicationV2) {
       itemRows,
       resolved,
       total,
+      progressPct,
       isFullyResolved: isFullyResolved(session),
       isGM,
       isPrimary,

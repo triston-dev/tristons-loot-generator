@@ -223,7 +223,10 @@ function emitToast(userId, message) {
   // (sendIntent's trusted path) would never see their own toast if we always
   // emitted. Show it directly instead of round-tripping through the socket.
   if (userId === game.user.id) {
-    ui.notifications.warn(message);
+    // localize() returns the input unchanged if it isn't a known key, so this
+    // is safe whether `message` is an i18n key (the normal case) or, in some
+    // hypothetical future caller, an already-localized string.
+    ui.notifications.warn(game.i18n.localize(message));
     return;
   }
   game.socket.emit(SOCKET_NAME, { type: "toast", userId, message });
@@ -274,7 +277,7 @@ export function initSocket() {
       return;
     }
     if (msg?.type === "toast") {
-      if (msg.userId === game.user.id) ui.notifications.warn(msg.message);
+      if (msg.userId === game.user.id) ui.notifications.warn(game.i18n.localize(msg.message));
     }
   });
 }

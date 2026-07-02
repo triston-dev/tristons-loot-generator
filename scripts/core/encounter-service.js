@@ -15,6 +15,7 @@ import { getEffectiveTable, getKeywordRules } from "./table-store.js";
 import { getActivePack } from "../content/index.js";
 import { resolveRef } from "../content/resolver.js";
 import { createSession, releaseSession } from "./session-store.js";
+import { isPrimaryGM } from "./socket-service.js";
 
 let idCounter = 0;
 function nextId() {
@@ -102,14 +103,10 @@ export function setOnCaptured(fn) {
   onCaptured = fn;
 }
 
-function isActiveGM() {
-  return game.users?.activeGM?.id === game.user.id;
-}
-
 export function initEncounterHooks() {
   Hooks.on("combatStart", async (combat) => {
     if (!game.user.isGM) return;
-    if (!isActiveGM()) return;
+    if (!isPrimaryGM()) return;
     if (!game.settings.get(MODULE_ID, SETTINGS.AUTO_GENERATE)) return;
     if (combat.getFlag(MODULE_ID, FLAGS.SKIP)) return;
 
@@ -124,7 +121,7 @@ export function initEncounterHooks() {
 
   Hooks.on("createCombatant", async (combatant, _options, _userId) => {
     if (!game.user.isGM) return;
-    if (!isActiveGM()) return;
+    if (!isPrimaryGM()) return;
     const combat = combatant.parent;
     if (!combat?.started) return;
     if (!combat.getFlag(MODULE_ID, FLAGS.STARTED)) return;
@@ -138,7 +135,7 @@ export function initEncounterHooks() {
 
   Hooks.on("deleteCombat", async (combat) => {
     if (!game.user.isGM) return;
-    if (!isActiveGM()) return;
+    if (!isPrimaryGM()) return;
     await captureSession(combat);
   });
 }

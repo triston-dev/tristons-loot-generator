@@ -120,6 +120,14 @@ function validateAllocateCurrency(payload, session, partyUuids) {
     return { ok: false, reason: "TLG.Intent.AllocationActorNotInParty" };
   }
 
+  for (const shares of Object.values(allocation)) {
+    for (const v of Object.values(shares)) {
+      if (!Number.isInteger(v) || v < 0) {
+        return { ok: false, reason: "TLG.Intent.BadAllocation" };
+      }
+    }
+  }
+
   const denoms = new Set(Object.keys(session.currency ?? {}));
   for (const shares of Object.values(allocation)) {
     for (const denom of Object.keys(shares)) denoms.add(denom);
@@ -183,9 +191,27 @@ function getPartyUuids() {
     .map((a) => a.uuid);
 }
 
-function buildUserContext(userId) {
+// SECURITY: `trusted` must be `true` ONLY for intents processed via the local
+// sendIntent() path (the primary GM's own client, never crossing the wire).
+// Foundry module sockets carry no server-verified sender identity — `msg.userId`
+// on a socket-delivered intent is entirely attacker-controlled. A malicious
+// client could emit `{userId: "<a-real-GM's-id>"}` and, if we trusted it,
+// `buildUserContext` would resolve `user.isGM === true` and every authority
+// check in validateIntent (claim-steal, unclaim-others, GM-only branches)
+// would treat the attacker as the GM. Capping `isGM = false` for anything
+// that arrived via socket closes that hole; it is safe because the primary
+// GM's own actions never arrive via socket (sendIntent processes them
+// locally, `trusted: true`).
+//
+// Residual risk (accepted, spec-owner ruling): Foundry provides no verified
+// sender for module sockets at all — this is the same trust model as the
+// socketlib ecosystem. A player who spoofs another PLAYER's userId can still
+// claim/unclaim/abandon on that player's behalf within a released session
+// (identity spoofing among non-GM players is not mitigated here). Only the
+// GM-privilege-escalation vector is closed.
+function buildUserContext(userId, trusted) {
   const requester = game.users.get(userId);
-  const isGM = Boolean(requester?.isGM);
+  const isGM = trusted && Boolean(requester?.isGM);
   const ownedActorUuids = game.actors
     .filter((a) => a.testUserPermission(requester, "OWNER"))
     .map((a) => a.uuid);
@@ -193,6 +219,13 @@ function buildUserContext(userId) {
 }
 
 function emitToast(userId, message) {
+  // The socket has no loopback — a GM processing their OWN intent locally
+  // (sendIntent's trusted path) would never see their own toast if we always
+  // emitted. Show it directly instead of round-tripping through the socket.
+  if (userId === game.user.id) {
+    ui.notifications.warn(message);
+    return;
+  }
   game.socket.emit(SOCKET_NAME, { type: "toast", userId, message });
 }
 
@@ -202,9 +235,9 @@ function emitToast(userId, message) {
  * failure — validation or unexpected throw — is turned into a toast back to
  * the requesting user (or swallowed if we can't even identify who to notify).
  */
-async function processIntent({ action, payload, userId }) {
+async function processIntent({ action, payload, userId }, trusted) {
   try {
-    const user = buildUserContext(userId);
+    const user = buildUserContext(userId, trusted);
     const session = getSession(payload.sessionId);
     const partyUuids = getPartyUuids();
 
@@ -218,12 +251,16 @@ async function processIntent({ action, payload, userId }) {
   } catch (err) {
     // Defensive: an unexpected throw (e.g. updateSession rejecting) must
     // still surface as a toast and must not propagate out of the queue.
-    emitToast(userId, err?.message ?? "TLG.Intent.UnexpectedError");
+    // Always use the FIXED key here — never the raw err.message, which may
+    // leak internal detail to the requesting client. The real error is
+    // still logged for the GM operator.
+    console.error("TLG | unexpected error processing intent", err);
+    emitToast(userId, "TLG.Intent.UnexpectedError");
   }
 }
 
-function enqueueIntent(intent) {
-  queue = queue.then(() => processIntent(intent));
+function enqueueIntent(intent, trusted) {
+  queue = queue.then(() => processIntent(intent, trusted));
   return queue;
 }
 
@@ -231,7 +268,9 @@ export function initSocket() {
   game.socket.on(SOCKET_NAME, (msg) => {
     if (msg?.type === "intent") {
       if (!isPrimaryGM()) return;
-      enqueueIntent(msg);
+      // arrivedViaSocket: never trusted, regardless of msg.userId — see the
+      // SECURITY comment on buildUserContext.
+      enqueueIntent(msg, false);
       return;
     }
     if (msg?.type === "toast") {
@@ -242,7 +281,8 @@ export function initSocket() {
 
 export async function sendIntent(action, payload) {
   if (isPrimaryGM()) {
-    await enqueueIntent({ action, payload, userId: game.user.id });
+    // Local path: never crosses the wire, so it is trusted.
+    await enqueueIntent({ action, payload, userId: game.user.id }, true);
     return;
   }
   game.socket.emit(SOCKET_NAME, { type: "intent", action, payload, userId: game.user.id });

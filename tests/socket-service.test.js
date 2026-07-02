@@ -270,6 +270,39 @@ describe("validateIntent", () => {
       const r = SVC.validateIntent("allocateCurrency", { allocation }, session, makeUser(), PARTY_UUIDS);
       expect(r.ok).toBe(true);
     });
+
+    it("fails: a negative share that still sums correctly to the pot is rejected", () => {
+      const session = makeSession({ currency: { gp: 10 } });
+      // -5 + 15 === 10 (sums correctly) but a negative share must be rejected outright.
+      const allocation = {
+        "Actor.pc1": { gp: -5 },
+        "Actor.pc2": { gp: 15 }
+      };
+      const r = SVC.validateIntent("allocateCurrency", { allocation }, session, makeUser(), PARTY_UUIDS);
+      expect(r.ok).toBe(false);
+      expect(r.reason).toBe("TLG.Intent.BadAllocation");
+    });
+
+    it("fails: a fractional share is rejected", () => {
+      const session = makeSession({ currency: { gp: 10 } });
+      const allocation = {
+        "Actor.pc1": { gp: 5.5 },
+        "Actor.pc2": { gp: 4.5 }
+      };
+      const r = SVC.validateIntent("allocateCurrency", { allocation }, session, makeUser(), PARTY_UUIDS);
+      expect(r.ok).toBe(false);
+      expect(r.reason).toBe("TLG.Intent.BadAllocation");
+    });
+
+    it("ok: all-zero-and-positive integer shares with an exact sum are accepted", () => {
+      const session = makeSession({ currency: { gp: 10, sp: 0 } });
+      const allocation = {
+        "Actor.pc1": { gp: 10, sp: 0 },
+        "Actor.pc2": { gp: 0, sp: 0 }
+      };
+      const r = SVC.validateIntent("allocateCurrency", { allocation }, session, makeUser(), PARTY_UUIDS);
+      expect(r.ok).toBe(true);
+    });
   });
 
   describe("unknown action", () => {
@@ -420,6 +453,68 @@ describe("sendIntent", () => {
   });
 });
 
+describe("socket-arrival privilege cap (spoofed userId cannot grant GM authority)", () => {
+  it("socket-delivered intent carrying a real GM's userId cannot unclaim another player's claim (rejected)", async () => {
+    const actorPc1 = { uuid: "Actor.pc1", type: "character", hasPlayerOwner: true, testUserPermission: (u) => u.id === "player1" };
+    const shim = installShim({
+      user: { id: "gm1", isGM: true },
+      users: [
+        { id: "gm1", isGM: true, active: true },
+        { id: "player1", isGM: false, active: true }
+      ],
+      actors: [actorPc1]
+    });
+
+    const created = await SS.createSession({ items: [makeItem({ state: "claimed", claimedBy: "Actor.pc1" })] });
+    await SS.updateSession(created.id, (draft) => { draft.status = "released"; });
+
+    const mod = await import("../scripts/core/socket-service.js?fresh=" + Math.random());
+    mod._resetQueue?.();
+    mod.initSocket();
+    // "gm1" is also the primary GM client's OWN user id (game.user.id), so a rejection
+    // toast for it surfaces directly via ui.notifications.warn (see Finding 3), not the
+    // socket — assert via that channel rather than socket.emit.
+    const warnSpy = vi.spyOn(ui.notifications, "warn");
+
+    // Attacker (not actually the GM client) spoofs msg.userId = "gm1" — a real GM user id —
+    // to try to force GM authority on the validation. Arrival is via socket, so it must
+    // still be treated as non-GM.
+    shim.socket._trigger(SOCKET_NAME, {
+      type: "intent", action: "unclaim", payload: { sessionId: created.id, itemId: "item1" }, userId: "gm1"
+    });
+
+    await mod._flushQueue();
+
+    const after = SS.getSession(created.id);
+    expect(after.items[0].state).toBe("claimed");
+    expect(after.items[0].claimedBy).toBe("Actor.pc1");
+    expect(warnSpy).toHaveBeenCalledWith("TLG.Intent.ItemNotUnclaimable");
+  });
+
+  it("local (trusted) GM intent via sendIntent still can unclaim another player's claim", async () => {
+    const actorPc1 = { uuid: "Actor.pc1", type: "character", hasPlayerOwner: true, testUserPermission: (u) => u.id === "player1" };
+    installShim({
+      user: { id: "gm1", isGM: true },
+      users: [
+        { id: "gm1", isGM: true, active: true },
+        { id: "player1", isGM: false, active: true }
+      ],
+      actors: [actorPc1]
+    });
+
+    const created = await SS.createSession({ items: [makeItem({ state: "claimed", claimedBy: "Actor.pc1" })] });
+    await SS.updateSession(created.id, (draft) => { draft.status = "released"; });
+
+    const mod = await import("../scripts/core/socket-service.js?fresh=" + Math.random());
+
+    await mod.sendIntent("unclaim", { sessionId: created.id, itemId: "item1" });
+
+    const after = SS.getSession(created.id);
+    expect(after.items[0].state).toBe("unclaimed");
+    expect(after.items[0].claimedBy).toBeUndefined();
+  });
+});
+
 describe("GM-side intent processing: validation failure emits toast", () => {
   it("emits a toast with the rejection reason when validation fails", async () => {
     const shim = installShim({
@@ -442,6 +537,26 @@ describe("GM-side intent processing: validation failure emits toast", () => {
     const call = emitSpy.mock.calls.find((c) => c[1]?.type === "toast");
     expect(call[1]).toMatchObject({ type: "toast", userId: "player1" });
     expect(typeof call[1].message).toBe("string");
+  });
+});
+
+describe("GM-local validation failure surfaces a toast directly (no socket loopback)", () => {
+  it("local GM intent that fails validation calls ui.notifications.warn with the reason instead of emitting", async () => {
+    const shim = installShim({
+      user: { id: "gm1", isGM: true },
+      users: [{ id: "gm1", isGM: true, active: true }],
+      actors: []
+    });
+    const mod = await import("../scripts/core/socket-service.js?fresh=" + Math.random());
+    const emitSpy = vi.spyOn(shim.socket, "emit");
+    const warnSpy = vi.spyOn(ui.notifications, "warn");
+
+    // No session exists with id "missing" -> validateIntent fails (GM is local/trusted).
+    await mod.sendIntent("claim", { sessionId: "missing", itemId: "item1", actorUuid: "Actor.pc1" });
+
+    expect(warnSpy).toHaveBeenCalledWith("TLG.Intent.SessionNotReleased");
+    const toastEmits = emitSpy.mock.calls.filter((c) => c[1]?.type === "toast");
+    expect(toastEmits.length).toBe(0);
   });
 });
 
@@ -489,7 +604,7 @@ describe("GM-side queue serialization", () => {
     expect(toastCalls[0][1].userId).toBe("player2");
   });
 
-  it("a throwing/rejecting intent does not wedge the queue for subsequent intents", async () => {
+  it("an unknown-session intent (ordinary validation-failure branch) does not wedge the queue for subsequent intents", async () => {
     const actorPc1 = { uuid: "Actor.pc1", type: "character", hasPlayerOwner: true, testUserPermission: () => true };
     const shim = installShim({
       user: { id: "gm1", isGM: true },
@@ -504,8 +619,9 @@ describe("GM-side queue serialization", () => {
     mod._resetQueue?.();
     mod.initSocket();
 
-    // First intent references a session that doesn't exist -> GM-side lookup / validateIntent
-    // fails gracefully (toast), it must not throw synchronously nor wedge the queue.
+    // First intent references a session that doesn't exist -> getSession returns null,
+    // validateIntent's ordinary "no session" rejection fires (NOT the catch/throw branch).
+    // It must not throw synchronously nor wedge the queue.
     shim.socket._trigger(SOCKET_NAME, {
       type: "intent", action: "claim", payload: { sessionId: "does-not-exist", itemId: "x", actorUuid: "Actor.pc1" }, userId: "player1"
     });
@@ -519,6 +635,65 @@ describe("GM-side queue serialization", () => {
     const final = SS.getSession(created.id);
     expect(final.items[0].state).toBe("claimed");
     expect(final.items[0].claimedBy).toBe("Actor.pc1");
+  });
+
+  it("a genuinely THROWING mutation (updateSession rejects) does not wedge the queue and toasts the fixed unexpected-error key", async () => {
+    const actorPc1 = { uuid: "Actor.pc1", type: "character", hasPlayerOwner: true, testUserPermission: () => true };
+    const shim = installShim({
+      user: { id: "gm1", isGM: true },
+      users: [{ id: "gm1", isGM: true, active: true }, { id: "player1", isGM: false, active: true }],
+      actors: [actorPc1]
+    });
+
+    const created = await SS.createSession({ items: [makeItem({ id: "itemA", state: "unclaimed" }), makeItem({ id: "itemB", state: "unclaimed" })] });
+    await SS.updateSession(created.id, (draft) => { draft.status = "released"; });
+
+    const mod = await import("../scripts/core/socket-service.js?fresh=" + Math.random());
+    mod._resetQueue?.();
+    mod.initSocket();
+
+    // Sabotage: validateIntent passes (item exists, is claimable), but updateSession's
+    // underlying game.settings.set call is stubbed to throw ONCE. This makes updateSession
+    // itself reject, so processIntent's mutation step throws for real — the REAL catch path
+    // in processIntent, not an ordinary validation failure.
+    const realSet = game.settings.set.bind(game.settings);
+    const settingsSetSpy = vi.spyOn(game.settings, "set");
+    let sabotaged = false;
+    settingsSetSpy.mockImplementation(async (ns, key, value) => {
+      if (!sabotaged && key === "sessions") {
+        sabotaged = true;
+        throw new Error("simulated write failure");
+      }
+      return realSet(ns, key, value);
+    });
+
+    const emitSpy = vi.spyOn(shim.socket, "emit");
+    const warnSpy = vi.spyOn(ui.notifications, "warn");
+
+    shim.socket._trigger(SOCKET_NAME, {
+      type: "intent", action: "claim", payload: { sessionId: created.id, itemId: "itemA", actorUuid: "Actor.pc1" }, userId: "player1"
+    });
+
+    await mod._flushQueue();
+
+    settingsSetSpy.mockRestore();
+
+    // The failing intent produced a toast to the requester with the FIXED unexpected-error key.
+    const toastCalls = emitSpy.mock.calls.filter((c) => c[1]?.type === "toast");
+    expect(toastCalls.length).toBe(1);
+    expect(toastCalls[0][1]).toMatchObject({ userId: "player1", message: "TLG.Intent.UnexpectedError" });
+    expect(warnSpy).not.toHaveBeenCalled();
+
+    // Queue is not wedged: a subsequent valid intent still processes.
+    shim.socket._trigger(SOCKET_NAME, {
+      type: "intent", action: "claim", payload: { sessionId: created.id, itemId: "itemB", actorUuid: "Actor.pc1" }, userId: "player1"
+    });
+    await mod._flushQueue();
+
+    const final = SS.getSession(created.id);
+    const itemB = final.items.find((i) => i.id === "itemB");
+    expect(itemB.state).toBe("claimed");
+    expect(itemB.claimedBy).toBe("Actor.pc1");
   });
 });
 

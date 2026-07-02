@@ -73,6 +73,9 @@ actors in one batch → summary chat card → session archived to history.
     weight: number,        // relative weight
     type: "item" | "currency" | "table" | "rolltable" | "nothing",
     uuid: string?,         // compendium item UUID (item) or RollTable UUID (rolltable)
+    ref: { pack: string, name: string }?,  // name-based compendium ref, used by
+                           // shipped pack tables (resolved to a UUID at load,
+                           // robust across dnd5e releases); GM drag-drop stores uuid
     tableId: string?,      // nested table reference (table)
     qty: string?,          // dice formula, default "1"
     currency: { formula: string, denom: string }?,  // formula may use @cr
@@ -256,7 +259,10 @@ setting (default on) and a per-encounter toggle in Loot Review.
   `allocateCurrency`. Payload: { sessionId, itemId?, actorUuid?, ... }.
 - Only the active GM client (first active GM by user id) processes intents:
   validate (session released? item unclaimed? actor is party character?) →
-  mutate session in world settings → broadcast `stateUpdate` with full session.
+  mutate session in world settings. World-setting changes propagate to every
+  client automatically, and the setting's `onChange` re-renders open windows —
+  no manual `stateUpdate` broadcast needed. The socket carries only player
+  intents (player → GM) and rejection toasts (GM → player).
 - Conflicts resolve by arrival order at the GM client; losers get a toast.
 - No GM connected → window renders read-only with a notice bar.
 - GM-side actions (review edits, release, finalize, revert) run locally on the

@@ -1,5 +1,6 @@
 import { MODULE_ID, SETTINGS } from "./config.js";
 import { initEncounterHooks } from "./core/encounter-service.js";
+import { initSocket } from "./core/socket-service.js";
 
 Hooks.once("init", () => {
   const s = game.settings;
@@ -17,5 +18,6 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", () => {
+  initSocket();
   initEncounterHooks();
 });

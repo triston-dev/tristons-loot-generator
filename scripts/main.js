@@ -1,6 +1,7 @@
 import { MODULE_ID, SETTINGS } from "./config.js";
 import { initEncounterHooks } from "./core/encounter-service.js";
 import { initSocket } from "./core/socket-service.js";
+import { TableManagerApp } from "./apps/table-manager.js";
 
 Hooks.once("init", () => {
   const s = game.settings;
@@ -15,9 +16,41 @@ Hooks.once("init", () => {
     s.register(MODULE_ID, key, { scope: "world", config: false, type: Object, default: {} });
   }
   s.register(MODULE_ID, SETTINGS.KEYWORD_RULES, { scope: "world", config: false, type: Object, default: { rules: [] } });
+
+  // ApplicationV2 subclasses are directly constructable/renderable, so
+  // TableManagerApp works as-is for registerMenu's `new menu.type().render(true)`
+  // contract — no shim class needed.
+  s.registerMenu(MODULE_ID, "tableManager", {
+    name: "TLG.TableManager.MenuName",
+    label: "TLG.TableManager.MenuLabel",
+    hint: "TLG.TableManager.MenuHint",
+    icon: "fas fa-list",
+    type: TableManagerApp,
+    restricted: true
+  });
 });
 
 Hooks.once("ready", () => {
   initSocket();
   initEncounterHooks();
+
+  foundry.applications.handlebars.loadTemplates([
+    `modules/${MODULE_ID}/templates/parts/entry-row.hbs`
+  ]);
+});
+
+Hooks.on("getSceneControlButtons", (controls) => {
+  if (!game.user.isGM) return;
+  const tokenControls = controls.tokens ?? Object.values(controls).find((c) => c.name === "tokens" || c.tools?.select);
+  if (!tokenControls) return;
+
+  tokenControls.tools.tlgTableManager = {
+    name: "tlgTableManager",
+    title: "TLG.TableManager.SceneControlName",
+    icon: "fas fa-list",
+    order: Object.keys(tokenControls.tools).length,
+    button: true,
+    visible: true,
+    onClick: () => new TableManagerApp().render(true)
+  };
 });

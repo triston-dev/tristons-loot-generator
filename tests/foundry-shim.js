@@ -32,7 +32,44 @@ export function installShim({ modules = {}, settings = {}, user = {}, users = []
     },
     socket
   };
-  globalThis.foundry = { utils: { randomID: () => Math.random().toString(36).slice(2, 12), deepClone: (o) => structuredClone(o) } };
+  globalThis.foundry = {
+    utils: {
+      randomID: () => Math.random().toString(36).slice(2, 12),
+      deepClone: (o) => structuredClone(o),
+      escapeHTML: (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"),
+      saveDataToFile: () => {}
+    },
+    applications: {
+      api: {
+        // Minimal fakes: sufficient to IMPORT app modules that subclass these
+        // and reference DialogV2 statics inside method bodies (not at class-
+        // definition time). Not a real ApplicationV2 — no rendering support.
+        ApplicationV2: class {
+          static DEFAULT_OPTIONS = {};
+          static PARTS = {};
+          render() { return this; }
+        },
+        HandlebarsApplicationMixin: (Base) => Base,
+        DialogV2: class {
+          static async confirm() { return false; }
+          static async prompt() { return null; }
+          static async wait() { return null; }
+        }
+      },
+      ux: {
+        FormDataExtended: class {
+          constructor(form) { this.object = form ?? {}; }
+        },
+        TextEditor: {
+          implementation: { getDragEventData: () => null },
+          getDragEventData: () => null
+        }
+      },
+      handlebars: {
+        loadTemplates: async () => {}
+      }
+    }
+  };
   globalThis.Hooks = { on: () => {}, once: () => {}, callAll: () => {} };
   globalThis.ui = { notifications: { warn: () => {}, info: () => {}, error: () => {} } };
   return { store, socket, socketEmitted };

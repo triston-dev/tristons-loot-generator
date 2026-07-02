@@ -1,0 +1,328 @@
+/* Triston's Loot Generator — shared styles. Foundry-native look via CSS vars. */
+
+.tlg-table-manager .window-content {
+  padding: 0;
+}
+
+.tlg-table-manager-layout {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Sidebar                                                                 */
+/* ---------------------------------------------------------------------- */
+
+.tlg-sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  min-width: 200px;
+  border-right: 1px solid var(--color-border-light-tertiary, #782e22);
+  background: var(--color-bg-alt, rgba(0, 0, 0, 0.05));
+  overflow-y: auto;
+  padding: 0.5rem;
+  gap: 0.5rem;
+}
+
+.tlg-sidebar-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tlg-search {
+  width: 100%;
+}
+
+.tlg-new-table {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.tlg-sidebar-group h3 {
+  font-size: var(--font-size-12, 12px);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-subtle, var(--color-text-secondary));
+  margin: 0.5rem 0 0.25rem;
+  border-bottom: 1px solid var(--color-border-light-tertiary, #782e22);
+  padding-bottom: 0.15rem;
+}
+
+.tlg-table-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.tlg-table-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--color-text-primary);
+}
+
+.tlg-table-item:hover {
+  background: var(--color-bg-option, rgba(255, 255, 255, 0.1));
+}
+
+.tlg-table-item.active {
+  background: var(--color-warm-2, #ff6400);
+  color: var(--color-light-1, #fff);
+}
+
+.tlg-table-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tlg-modified-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  min-width: 7px;
+  border-radius: 50%;
+  background: var(--color-level-warning, #ff9900);
+}
+
+.tlg-sidebar-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border-light-tertiary, #782e22);
+}
+
+.tlg-sidebar-footer button {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Editor pane                                                            */
+/* ---------------------------------------------------------------------- */
+
+.tlg-editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 0.75rem;
+}
+
+.tlg-editor-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--color-text-subtle, var(--color-text-secondary));
+  font-style: italic;
+}
+
+.tlg-editor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  height: 100%;
+  min-height: 0;
+}
+
+.tlg-editor-header {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.tlg-name-group {
+  flex: 2;
+  min-width: 180px;
+}
+
+.tlg-rolls-group {
+  flex: 1;
+  min-width: 100px;
+}
+
+.tlg-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.tlg-dirty-badge {
+  font-size: var(--font-size-11, 11px);
+  color: var(--color-level-warning, #ff9900);
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 0.05rem 0.4rem;
+}
+
+.tlg-problems {
+  background: rgba(255, 0, 0, 0.08);
+  border: 1px solid var(--color-level-error, #a00);
+  border-radius: 3px;
+  padding: 0.4rem 0.6rem;
+  font-size: var(--font-size-12, 12px);
+}
+
+.tlg-problems ul {
+  margin: 0.2rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.tlg-entries-region {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px dashed var(--color-border-light-tertiary, #782e22);
+  border-radius: 4px;
+  padding: 0.5rem;
+  overflow: hidden;
+}
+
+.tlg-entries-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tlg-entries-header h3 {
+  margin: 0;
+}
+
+.tlg-drop-hint {
+  font-size: var(--font-size-11, 11px);
+  color: var(--color-text-subtle, var(--color-text-secondary));
+  font-style: italic;
+  padding: 0.15rem 0;
+}
+
+.tlg-entry-rows {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tlg-entry-row {
+  display: grid;
+  grid-template-columns: 110px 60px 1fr 90px 90px auto;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem;
+  border-radius: 3px;
+  background: var(--color-bg-option, rgba(255, 255, 255, 0.05));
+  position: relative;
+}
+
+.tlg-entry-row.tlg-entry-problem {
+  outline: 1px solid var(--color-level-error, #a00);
+}
+
+.tlg-entry-name {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tlg-entry-name img {
+  width: 18px;
+  height: 18px;
+  object-fit: cover;
+  border: none;
+  border-radius: 2px;
+}
+
+.tlg-broken {
+  color: var(--color-level-error, #a00);
+  font-style: italic;
+}
+
+.tlg-entry-problems {
+  grid-column: 1 / -1;
+  color: var(--color-level-error, #a00);
+  font-size: var(--font-size-11, 11px);
+}
+
+.tlg-test-roll-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--color-border-light-tertiary, #782e22);
+}
+
+.tlg-test-roll-bar input[type="number"] {
+  width: 70px;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Keyword rules editor (DialogV2 content)                                */
+/* ---------------------------------------------------------------------- */
+
+.tlg-rules-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tlg-rules-editor .hint {
+  font-size: var(--font-size-11, 11px);
+  color: var(--color-text-subtle, var(--color-text-secondary));
+}
+
+.tlg-rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.tlg-rule-row {
+  display: grid;
+  grid-template-columns: auto 1fr 110px 1fr auto auto auto;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Shared chip styles (reused by Loot Review / Distribution windows)      */
+/* ---------------------------------------------------------------------- */
+
+.tlg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-bg-option, rgba(255, 255, 255, 0.1));
+  font-size: var(--font-size-12, 12px);
+}
+
+.tlg-chip.tlg-chip-carried {
+  background: var(--color-warm-2, #ff6400);
+  color: var(--color-light-1, #fff);
+}

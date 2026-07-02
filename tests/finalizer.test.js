@@ -245,6 +245,49 @@ describe("buildSummaryHTML", () => {
     expect(html).toContain("sp");
     expect(html).toContain("4");
   });
+
+  it("HTML-escapes a malicious grant item name", () => {
+    const session = makeSession({
+      items: [
+        makeItem({
+          id: "i1",
+          name: '<img src=x onerror=alert(1)>',
+          qty: 1,
+          uuid: "x",
+          state: "claimed",
+          claimedBy: "Actor.a"
+        })
+      ]
+    });
+    const grants = FIN.groupGrants(session);
+    const html = FIN.buildSummaryHTML(session, grants, { "Actor.a": "Aria" });
+
+    expect(html).toContain("&lt;img");
+    expect(html).not.toContain("<img");
+  });
+
+  it("HTML-escapes a malicious abandoned item name", () => {
+    const session = makeSession({
+      items: [makeItem({ id: "i1", name: '<img src=x onerror=alert(1)>', state: "abandoned" })]
+    });
+    const grants = FIN.groupGrants(session);
+    const html = FIN.buildSummaryHTML(session, grants, {});
+
+    expect(html).toContain("&lt;img");
+    expect(html).not.toContain("<img");
+  });
+
+  it("HTML-escapes a malicious actor display name", () => {
+    const session = makeSession({
+      items: [makeItem({ id: "i1", name: "Longsword", qty: 1, uuid: "x", state: "claimed", claimedBy: "Actor.a" })]
+    });
+    const grants = FIN.groupGrants(session);
+    const actorNames = { "Actor.a": "<b>Bob</b>" };
+    const html = FIN.buildSummaryHTML(session, grants, actorNames);
+
+    expect(html).toContain("&lt;b&gt;");
+    expect(html).not.toContain("<b>Bob</b>");
+  });
 });
 
 // ---------------------------------------------------------------------------

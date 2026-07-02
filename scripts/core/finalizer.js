@@ -20,6 +20,22 @@ import { isPrimaryGM } from "./socket-service.js";
 // ---------------------------------------------------------------------------
 
 /**
+ * Escapes HTML special characters so untrusted strings (item names, actor
+ * names) can be safely interpolated into chat message HTML. Pure function.
+ *
+ * @param {string} str
+ * @returns {string}
+ */
+export function escapeHTML(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
  * Groups a session's claimed items and allocated currency by recipient actor.
  *
  * @param {object} session
@@ -82,7 +98,7 @@ export function buildSummaryHTML(session, grants, actorNames = {}, i18n = (k) =>
   }
 
   for (const actorUuid of actorUuids) {
-    const name = actorNames[actorUuid] ?? actorUuid;
+    const name = escapeHTML(actorNames[actorUuid] ?? actorUuid);
     parts.push(`<div class="tlg-summary-actor">`);
     parts.push(`<strong>${name}</strong>`);
 
@@ -90,7 +106,7 @@ export function buildSummaryHTML(session, grants, actorNames = {}, i18n = (k) =>
     if (items.length) {
       parts.push("<ul>");
       for (const grant of items) {
-        parts.push(`<li>${grant.name} ×${grant.qty}</li>`);
+        parts.push(`<li>${escapeHTML(grant.name)} ×${grant.qty}</li>`);
       }
       parts.push("</ul>");
     }
@@ -114,7 +130,7 @@ export function buildSummaryHTML(session, grants, actorNames = {}, i18n = (k) =>
     parts.push(`<strong>${i18n("TLG.Summary.Abandoned")}</strong>`);
     parts.push("<ul>");
     for (const item of abandoned) {
-      parts.push(`<li>${item.name}</li>`);
+      parts.push(`<li>${escapeHTML(item.name)}</li>`);
     }
     parts.push("</ul>");
     parts.push("</div>");
@@ -176,6 +192,11 @@ export async function finalizeSession(sessionId) {
 
   const createdItemIds = [];
   const failedActors = [];
+  // Carried-item source deletions are collected here during the per-actor
+  // loop and only executed after updateSession() has persisted status
+  // "finalized" + createdItemIds + currencyGranted. Invariant: no
+  // irreversible mutation before bookkeeping persists.
+  const pendingSourceDeletions = [];
 
   for (const [actorUuid, itemList] of Object.entries(itemGrants)) {
     const actor = await fromUuid(actorUuid);
@@ -232,14 +253,17 @@ export async function finalizeSession(sessionId) {
         ...(grant.itemData !== undefined ? { itemData: grant.itemData } : {})
       });
 
+      // Do NOT delete the carried source item here. Deletion is an
+      // irreversible mutation; it must not happen before the session's
+      // createdItemIds/status bookkeeping has persisted (updateSession
+      // below), otherwise a mid-batch failure could lose the only record
+      // that the deletion occurred. Collect it and execute after persist.
       if (grant.carried && grant.sourceTokenUuid && grant.itemData?._id) {
-        try {
-          const sourceToken = await fromUuid(grant.sourceTokenUuid);
-          const sourceItem = sourceToken?.actor?.items?.get(grant.itemData._id);
-          await sourceItem?.delete();
-        } catch (err) {
-          console.warn(`TLG | finalize: could not remove carried source item for ${grant.name}`, err);
-        }
+        pendingSourceDeletions.push({
+          sourceTokenUuid: grant.sourceTokenUuid,
+          itemId: grant.itemData._id,
+          name: grant.name
+        });
       }
     }
 
@@ -284,6 +308,23 @@ export async function finalizeSession(sessionId) {
     draft.createdItemIds = createdItemIds;
     draft.currencyGranted = currencyGrants;
   });
+
+  // Bookkeeping has now persisted (status "finalized" + createdItemIds +
+  // currencyGranted), so it is now safe to perform the irreversible source
+  // deletions collected during the per-actor loop above. If any of these
+  // fail, warn-and-continue: the recorded itemData still allows manual
+  // cleanup, and revert remains correct because restoration re-creates the
+  // item from the stored itemData regardless of whether the source was
+  // actually deleted.
+  for (const pending of pendingSourceDeletions) {
+    try {
+      const sourceToken = await fromUuid(pending.sourceTokenUuid);
+      const sourceItem = sourceToken?.actor?.items?.get(pending.itemId);
+      await sourceItem?.delete();
+    } catch (err) {
+      console.warn(`TLG | finalize: could not remove carried source item for ${pending.name}`, err);
+    }
+  }
 
   if (failedActors.length) {
     ui.notifications.warn(`TLG.Finalize.PartialFailure: ${failedActors.join(", ")}`);

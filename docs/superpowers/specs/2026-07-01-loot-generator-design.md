@@ -76,6 +76,8 @@ actors in one batch → summary chat card → session archived to history.
     ref: { pack: string, name: string }?,  // name-based compendium ref, used by
                            // shipped pack tables (resolved to a UUID at load,
                            // robust across dnd5e releases); GM drag-drop stores uuid
+    itemData: object?,     // inline item data (trinkets/valuables with no
+                           // compendium entry) — created directly at finalize
     tableId: string?,      // nested table reference (table)
     qty: string?,          // dice formula, default "1"
     currency: { formula: string, denom: string }?,  // formula may use @cr

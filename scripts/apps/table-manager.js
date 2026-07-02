@@ -202,6 +202,11 @@ export class TableManagerApp extends HandlebarsApplicationMixin(ApplicationV2) {
       dropZone.addEventListener("drop", this.#onDrop.bind(this));
       dropZone.addEventListener("dragover", (event) => event.preventDefault());
     }
+    const editorForm = this.element.querySelector("form");
+    if (editorForm) {
+      editorForm.addEventListener("input", () => { this.dirty = true; });
+      editorForm.addEventListener("change", () => { this.dirty = true; });
+    }
   }
 
   async #onDrop(event) {
@@ -529,7 +534,7 @@ async function openRulesEditorDialog() {
           <option value="regex" ${rule.matchType === "regex" ? "selected" : ""}>${game.i18n.localize("TLG.TableManager.RulesMatchType.regex")}</option>
         </select>
         <select name="tableId">
-          ${allTables.map((t) => `<option value="${t.id}" ${rule.tableId === t.id ? "selected" : ""}>${t.name}</option>`).join("")}
+          ${allTables.map((t) => `<option value="${t.id}" ${rule.tableId === t.id ? "selected" : ""}>${foundry.utils.escapeHTML(t.name)}</option>`).join("")}
         </select>
         <button type="button" data-rule-action="up" data-index="${i}" ${i === 0 ? "disabled" : ""}><i class="fas fa-arrow-up"></i></button>
         <button type="button" data-rule-action="down" data-index="${i}" ${i === rules.length - 1 ? "disabled" : ""}><i class="fas fa-arrow-down"></i></button>
@@ -615,7 +620,7 @@ export async function openTablePicker(current) {
 
   const content = `<div class="form-group">
     <select name="tableId">
-      ${options.map((t) => `<option value="${t.id}" ${t.id === (current ?? "") ? "selected" : ""}>${t.name}</option>`).join("")}
+      ${options.map((t) => `<option value="${t.id}" ${t.id === (current ?? "") ? "selected" : ""}>${foundry.utils.escapeHTML(t.name)}</option>`).join("")}
     </select>
   </div>`;
 

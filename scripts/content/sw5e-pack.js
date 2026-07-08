@@ -26,7 +26,7 @@ const corrodedPlating = () => ({ name: "Corroded plating", img: "icons/commoditi
 
 export default {
   id: "sw5e", label: "SW5e",
-  itemPacks: ["sw5e.blasters", "sw5e.lightweapons", "sw5e.adventuringgear", "sw5e.enhanceditems"],
+  itemPacks: ["sw5e-module.equipment", "sw5e-module.enhanceditems"],
   currency: { path: "system.currency", primary: "gp",
     denominations: [{ key: "gp", label: "Credits" }] },
   creatureTypes: ["aberration", "beast", "construct", "droid", "force entity", "humanoid", "plant", "undead"],

@@ -7,5 +7,5 @@ export function getPack(id) { return PACKS[id] ?? DND5E; }
 export function getActivePack() {
   const forced = game.settings.get(MODULE_ID, SETTINGS.PACK);
   if (forced && forced !== "auto") return getPack(forced);
-  return game.modules.get("sw5e")?.active ? SW5E : DND5E;
+  return game.modules.get("sw5e-module")?.active ? SW5E : DND5E;
 }

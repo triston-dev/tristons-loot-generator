@@ -3,7 +3,7 @@ import { installShim } from "./foundry-shim.js";
 
 let getActivePack, getPack, DND5E, SW5E;
 beforeEach(async () => {
-  installShim({ modules: { sw5e: { active: true } }, settings: { "tristons-loot-generator.contentPack": "auto" } });
+  installShim({ modules: { "sw5e-module": { active: true } }, settings: { "tristons-loot-generator.contentPack": "auto" } });
   ({ getActivePack, getPack } = await import("../scripts/content/index.js"));
   DND5E = (await import("../scripts/content/dnd5e-pack.js")).default;
   SW5E = (await import("../scripts/content/sw5e-pack.js")).default;

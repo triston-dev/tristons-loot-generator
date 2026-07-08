@@ -7,22 +7,26 @@ import { LootReviewApp } from "./apps/loot-review.js";
 import { DistributionApp, syncOpenWindows, lastKnownStatus } from "./apps/distribution.js";
 import { assignFlow, resolveActorFromListItem } from "./apps/assign-table.js";
 import { HistoryApp } from "./apps/history.js";
+import TRANSLATIONS from "./lang-en.js";
 
-// Some hosts (observed on Sqyre-hosted worlds) fail to apply module language
-// files declared in module.json even though the file itself is served
-// correctly. If our translations are absent after i18n setup, load and merge
-// them ourselves; overwrite:false keeps host-loaded translations authoritative
-// when the normal mechanism did work.
-Hooks.once("i18nInit", async () => {
-  if (game.i18n.translations?.TLG) return;
+// Some hosts (observed on Sqyre) serve WRONG content when Foundry fetches
+// module lang files, so the declared lang/en.json cannot be trusted to load.
+// The translations are embedded in scripts/lang-en.js (generated from
+// lang/en.json; a test enforces they stay identical) and applied directly
+// whenever the TLG namespace is missing. Direct assignment of only our own
+// namespace - never a deep merge over core translations.
+function applyEmbeddedTranslations(phase) {
+  if (game.i18n?.translations?.TLG) return;
   try {
-    const json = await foundry.utils.fetchJsonWithTimeout(`modules/${MODULE_ID}/lang/en.json`);
-    foundry.utils.mergeObject(game.i18n.translations, json, { overwrite: false });
-    console.warn(`TLG | host did not apply lang/en.json; translations merged manually`);
+    game.i18n.translations.TLG = foundry.utils.deepClone(TRANSLATIONS.TLG);
+    console.warn(`TLG | host did not load lang/en.json; embedded translations applied (${phase})`);
   } catch (err) {
-    console.error(`TLG | manual translation load failed`, err);
+    console.error(`TLG | embedded translation apply failed`, err);
   }
-});
+}
+Hooks.once("i18nInit", () => applyEmbeddedTranslations("i18nInit"));
+Hooks.once("setup", () => applyEmbeddedTranslations("setup"));
+Hooks.once("ready", () => applyEmbeddedTranslations("ready"));
 
 Hooks.once("init", () => {
   const s = game.settings;

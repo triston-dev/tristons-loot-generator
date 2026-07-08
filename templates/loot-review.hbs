@@ -21,7 +21,7 @@
           <img class="tlg-npc-img" src="{{npc.img}}" alt="">
           <div class="tlg-npc-info">
             <span class="tlg-npc-name">{{npc.actorName}}</span>
-            <span class="tlg-npc-meta">{{localize 'TLG.LootReview.CrLabel'}} {{npc.cr}} &middot; {{npc.tableSource}}</span>
+            <span class="tlg-npc-meta">{{localize 'TLG.LootReview.CrLabel'}} {{npc.cr}} &middot; {{localize (concat 'TLG.LootReview.Source.' npc.tableSource)}}</span>
           </div>
           <div class="tlg-npc-chips">
             {{#each npc.generatedChips as |item|}}

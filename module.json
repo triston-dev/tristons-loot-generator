@@ -1,8 +1,8 @@
-{
+﻿{
   "id": "tristons-loot-generator",
   "title": "Triston's Loot Generator",
   "description": "Rolls contextual loot for NPCs when combat starts and opens a party loot-splitting window when it ends. GM-editable tables, boss overrides, SW5E support.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "authors": [{ "name": "Triston" }],
   "compatibility": { "minimum": "13", "verified": "13.351" },
   "relationships": {

@@ -8,6 +8,22 @@ import { DistributionApp, syncOpenWindows, lastKnownStatus } from "./apps/distri
 import { assignFlow, resolveActorFromListItem } from "./apps/assign-table.js";
 import { HistoryApp } from "./apps/history.js";
 
+// Some hosts (observed on Sqyre-hosted worlds) fail to apply module language
+// files declared in module.json even though the file itself is served
+// correctly. If our translations are absent after i18n setup, load and merge
+// them ourselves; overwrite:false keeps host-loaded translations authoritative
+// when the normal mechanism did work.
+Hooks.once("i18nInit", async () => {
+  if (game.i18n.translations?.TLG) return;
+  try {
+    const json = await foundry.utils.fetchJsonWithTimeout(`modules/${MODULE_ID}/lang/en.json`);
+    foundry.utils.mergeObject(game.i18n.translations, json, { overwrite: false });
+    console.warn(`TLG | host did not apply lang/en.json; translations merged manually`);
+  } catch (err) {
+    console.error(`TLG | manual translation load failed`, err);
+  }
+});
+
 Hooks.once("init", () => {
   const s = game.settings;
   s.register(MODULE_ID, SETTINGS.AUTO_GENERATE, { name: "TLG.Settings.AutoGenerate", scope: "world", config: true, type: Boolean, default: true });

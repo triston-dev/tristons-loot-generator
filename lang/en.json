@@ -115,6 +115,12 @@
     "LootReview": {
       "Title": "Loot Review",
       "SessionMissing": "This loot session no longer exists.",
+      "Source": {
+        "override": "Boss table",
+        "keyword": "Keyword rule",
+        "type": "Creature type",
+        "fallback": "Fallback table"
+      },
       "CarriedGearToggle": "Include carried gear",
       "RerollAll": "Reroll all",
       "RerollAllConfirmTitle": "Reroll all",

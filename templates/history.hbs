@@ -1,0 +1,45 @@
+{{#if hasRows}}
+  <div class="tlg-history-list">
+    {{#each rows as |row|}}
+      <div class="tlg-history-row tlg-history-row--{{row.status}}">
+        <header class="tlg-history-row-header">
+          <span class="tlg-history-name">{{row.name}}</span>
+          <span class="tlg-history-date">{{row.createdLabel}}</span>
+          <span class="tlg-history-badge tlg-history-badge--{{row.status}}">{{localize (concat "TLG.History.Status." row.status)}}</span>
+          {{#if row.canRevert}}
+            <button type="button" class="tlg-history-revert" data-action="revert" data-session-id="{{row.id}}">
+              <i class="fas fa-rotate-left"></i> {{localize 'TLG.History.Revert'}}
+            </button>
+          {{/if}}
+        </header>
+        {{#if row.actors.length}}
+          <div class="tlg-history-actors">
+            {{#each row.actors as |actor|}}
+              <div class="tlg-history-actor">
+                <strong>{{actor.name}}</strong>
+                {{#if actor.items.length}}
+                  <ul class="tlg-history-items">
+                    {{#each actor.items as |item|}}
+                      <li>{{item.name}} &times;{{item.qty}}</li>
+                    {{/each}}
+                  </ul>
+                {{/if}}
+                {{#if actor.currency.length}}
+                  <p class="tlg-history-currency">
+                    {{#each actor.currency as |c|}}{{c.amount}} {{c.denom}} {{/each}}
+                  </p>
+                {{/if}}
+              </div>
+            {{/each}}
+          </div>
+        {{else}}
+          <p class="tlg-history-empty">{{localize 'TLG.History.NothingGranted'}}</p>
+        {{/if}}
+      </div>
+    {{/each}}
+  </div>
+{{else}}
+  <div class="tlg-editor-empty">
+    <p>{{localize 'TLG.History.Empty'}}</p>
+  </div>
+{{/if}}

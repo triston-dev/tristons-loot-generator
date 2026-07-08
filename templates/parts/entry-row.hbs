@@ -1,0 +1,43 @@
+<div class="tlg-entry-row {{#if entry.problems.length}}tlg-entry-problem{{/if}}" data-entry-id="{{entry.id}}">
+  <select name="entries.{{index}}.type" class="tlg-entry-type">
+    {{#each entryTypes as |type|}}
+      <option value="{{type}}" {{#if (eq type entry.type)}}selected{{/if}}>{{localize (concat "TLG.TableManager.EntryType." type)}}</option>
+    {{/each}}
+  </select>
+
+  <input type="number" class="tlg-entry-weight" name="entries.{{index}}.weight" value="{{entry.weight}}" min="0" step="1" title="{{localize 'TLG.TableManager.Weight'}}">
+
+  <span class="tlg-entry-name {{#if entry.display.broken}}tlg-broken{{/if}}" title="{{#if entry.display.broken}}{{localize 'TLG.TableManager.BrokenRef'}}{{/if}}">
+    {{#if entry.display.img}}<img src="{{entry.display.img}}" alt="">{{/if}}
+    {{#if entry.uuid}}<input type="hidden" name="entries.{{index}}.uuid" value="{{entry.uuid}}">{{/if}}
+    {{#if (eq entry.type "table")}}
+      <select name="entries.{{index}}.tableId">
+        {{#each allTables as |t|}}
+          <option value="{{t.id}}" {{#if (eq t.id entry.tableId)}}selected{{/if}}>{{t.name}}</option>
+        {{/each}}
+      </select>
+    {{else}}
+      {{entry.display.name}}
+    {{/if}}
+  </span>
+
+  {{#if (eq entry.type "currency")}}
+    <input type="text" class="tlg-entry-formula" name="entries.{{index}}.formula" value="{{entry.currency.formula}}" placeholder="{{localize 'TLG.TableManager.Formula'}}">
+    <input type="text" class="tlg-entry-denom" name="entries.{{index}}.denom" value="{{entry.currency.denom}}" placeholder="{{localize 'TLG.TableManager.Denomination'}}">
+  {{else}}
+    <input type="text" class="tlg-entry-qty" name="entries.{{index}}.qty" value="{{entry.qty}}" placeholder="{{localize 'TLG.TableManager.Qty'}}">
+  {{/if}}
+
+  <input type="number" class="tlg-entry-mincr" name="entries.{{index}}.minCr" value="{{entry.minCr}}" placeholder="{{localize 'TLG.TableManager.MinCr'}}" step="0.125">
+  <input type="number" class="tlg-entry-maxcr" name="entries.{{index}}.maxCr" value="{{entry.maxCr}}" placeholder="{{localize 'TLG.TableManager.MaxCr'}}" step="0.125">
+
+  <button type="button" class="tlg-entry-delete" data-action="deleteEntry" data-entry-id="{{entry.id}}" title="{{localize 'TLG.TableManager.DeleteEntry'}}">
+    <i class="fas fa-trash"></i>
+  </button>
+
+  {{#if entry.problems.length}}
+    <div class="tlg-entry-problems">
+      {{#each entry.problems as |p|}}<div>{{p}}</div>{{/each}}
+    </div>
+  {{/if}}
+</div>

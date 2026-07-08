@@ -1,0 +1,111 @@
+<div class="tlg-table-manager-layout">
+  <nav class="tlg-sidebar">
+    <div class="tlg-sidebar-header">
+      <input type="search" class="tlg-search" placeholder="{{localize 'TLG.TableManager.SearchPlaceholder'}}">
+      <button type="button" class="tlg-new-table" data-action="newTable" title="{{localize 'TLG.TableManager.NewTable'}}">
+        <i class="fas fa-plus"></i> {{localize 'TLG.TableManager.NewTable'}}
+      </button>
+    </div>
+
+    <div class="tlg-sidebar-group">
+      <h3>{{localize 'TLG.TableManager.GroupPack' pack=pack.label}}</h3>
+      <ul class="tlg-table-list">
+        {{#each packTables as |t|}}
+          <li class="tlg-table-item {{#if (eq t.id ../selectedId)}}active{{/if}}" data-action="selectTable" data-table-id="{{t.id}}">
+            {{#if t.modified}}<span class="tlg-modified-dot" title="{{localize 'TLG.TableManager.Modified'}}"></span>{{/if}}
+            <span class="tlg-table-name">{{t.name}}</span>
+          </li>
+        {{/each}}
+      </ul>
+    </div>
+
+    <div class="tlg-sidebar-group">
+      <h3>{{localize 'TLG.TableManager.GroupCustom'}}</h3>
+      <ul class="tlg-table-list">
+        {{#each customTables as |t|}}
+          <li class="tlg-table-item {{#if (eq t.id ../selectedId)}}active{{/if}}" data-action="selectTable" data-table-id="{{t.id}}">
+            <span class="tlg-modified-dot" title="{{localize 'TLG.TableManager.Modified'}}"></span>
+            <span class="tlg-table-name">{{t.name}}</span>
+          </li>
+        {{/each}}
+      </ul>
+    </div>
+
+    {{#if bossOverrides.length}}
+      <div class="tlg-sidebar-group">
+        <h3>{{localize 'TLG.TableManager.GroupBoss'}}</h3>
+        <ul class="tlg-table-list">
+          {{#each bossOverrides as |b|}}
+            <li class="tlg-table-item {{#if (eq b.tableId ../selectedId)}}active{{/if}}" data-action="selectTable" data-table-id="{{b.tableId}}">
+              <span class="tlg-table-name">{{b.actorName}}</span>
+            </li>
+          {{/each}}
+        </ul>
+      </div>
+    {{/if}}
+
+    <div class="tlg-sidebar-footer">
+      <button type="button" data-action="rulesEditor"><i class="fas fa-list-ol"></i> {{localize 'TLG.TableManager.RulesEditor'}}</button>
+      <button type="button" data-action="exportData"><i class="fas fa-file-export"></i> {{localize 'TLG.TableManager.Export'}}</button>
+      <button type="button" data-action="importData"><i class="fas fa-file-import"></i> {{localize 'TLG.TableManager.Import'}}</button>
+    </div>
+  </nav>
+
+  <section class="tlg-editor">
+    {{#if table}}
+      <form class="tlg-editor-form" autocomplete="off">
+        <header class="tlg-editor-header">
+          <div class="form-group tlg-name-group">
+            <label>{{localize 'TLG.TableManager.NameLabel'}}</label>
+            <input type="text" name="name" value="{{table.name}}">
+          </div>
+          <div class="form-group tlg-rolls-group">
+            <label title="{{localize 'TLG.TableManager.RollsHint'}}">{{localize 'TLG.TableManager.RollsLabel'}}</label>
+            <input type="text" name="rolls" value="{{table.rolls}}">
+          </div>
+          <div class="tlg-header-actions">
+            {{#if dirty}}<span class="tlg-dirty-badge">{{localize 'TLG.TableManager.Modified'}}</span>{{/if}}
+            <button type="button" data-action="saveTable"><i class="fas fa-save"></i> {{localize 'TLG.TableManager.SaveTable'}}</button>
+            {{#if isCustom}}
+              <button type="button" data-action="deleteTable" data-table-id="{{table.id}}"><i class="fas fa-trash"></i> {{localize 'TLG.TableManager.DeleteTable'}}</button>
+            {{else}}
+              <button type="button" data-action="revert" data-table-id="{{table.id}}"><i class="fas fa-undo"></i> {{localize 'TLG.TableManager.RevertToDefault'}}</button>
+            {{/if}}
+          </div>
+        </header>
+
+        {{#if problems.length}}
+          <div class="tlg-problems">
+            <strong>{{localize 'TLG.TableManager.Problems'}}:</strong>
+            <ul>
+              {{#each problems as |p|}}<li>{{p}}</li>{{/each}}
+            </ul>
+          </div>
+        {{/if}}
+
+        <div class="tlg-entries-region">
+          <div class="tlg-entries-header">
+            <h3>{{localize 'TLG.TableManager.EntriesLabel'}}</h3>
+            <button type="button" data-action="addEntry"><i class="fas fa-plus"></i> {{localize 'TLG.TableManager.AddEntry'}}</button>
+          </div>
+          <div class="tlg-drop-hint">{{localize 'TLG.TableManager.DropHint'}}</div>
+          <div class="tlg-entry-rows">
+            {{#each entries as |entry i|}}
+              {{> "modules/tristons-loot-generator/templates/parts/entry-row.hbs" entry=entry index=i entryTypes=../entryTypes allTables=../allTables}}
+            {{/each}}
+          </div>
+        </div>
+
+        <footer class="tlg-test-roll-bar">
+          <label>{{localize 'TLG.TableManager.TestRollCrLabel'}}</label>
+          <input type="number" name="testCr" min="0" step="0.125" value="{{testCr}}">
+          <button type="button" data-action="testRoll"><i class="fas fa-dice"></i> {{localize 'TLG.TableManager.TestRollButton'}}</button>
+        </footer>
+      </form>
+    {{else}}
+      <div class="tlg-editor-empty">
+        <p>{{localize 'TLG.TableManager.NoTableSelected'}}</p>
+      </div>
+    {{/if}}
+  </section>
+</div>

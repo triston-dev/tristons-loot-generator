@@ -1,0 +1,62 @@
+{{#if missing}}
+  <div class="tlg-editor-empty">
+    <p>{{localize 'TLG.LootReview.SessionMissing'}}</p>
+  </div>
+{{else}}
+  <form class="tlg-loot-review-layout" autocomplete="off">
+    <header class="tlg-review-header">
+      <label class="tlg-carried-toggle">
+        <input type="checkbox" data-action="toggleCarried" {{#if carriedEnabled}}checked{{/if}}>
+        {{localize 'TLG.LootReview.CarriedGearToggle'}}
+      </label>
+      <button type="button" data-action="rerollAll"><i class="fas fa-dice"></i> {{localize 'TLG.LootReview.RerollAll'}}</button>
+    </header>
+
+    <div class="tlg-npc-list">
+      {{#each npcs as |npc|}}
+        <div class="tlg-npc-row {{#unless npc.included}}tlg-npc--excluded{{/unless}}" data-token-id="{{npc.tokenId}}">
+          <label class="tlg-npc-include">
+            <input type="checkbox" data-action="toggleNpc" data-token-id="{{npc.tokenId}}" {{#if npc.included}}checked{{/if}}>
+          </label>
+          <img class="tlg-npc-img" src="{{npc.img}}" alt="">
+          <div class="tlg-npc-info">
+            <span class="tlg-npc-name">{{npc.actorName}}</span>
+            <span class="tlg-npc-meta">{{localize 'TLG.LootReview.CrLabel'}} {{npc.cr}} &middot; {{localize (concat 'TLG.LootReview.Source.' npc.tableSource)}}</span>
+          </div>
+          <div class="tlg-npc-chips">
+            {{#each npc.generatedChips as |item|}}
+              {{> "modules/tristons-loot-generator/templates/parts/loot-chip.hbs" item=item carried=false}}
+            {{/each}}
+            {{#each npc.carriedChips as |item|}}
+              {{> "modules/tristons-loot-generator/templates/parts/loot-chip.hbs" item=item carried=true}}
+            {{/each}}
+            <button type="button" class="tlg-add-item-btn" data-action="addItem" data-token-id="{{npc.tokenId}}" title="{{localize 'TLG.LootReview.AddItem'}}">
+              <i class="fas fa-plus"></i>
+            </button>
+          </div>
+          <button type="button" class="tlg-npc-reroll" data-action="rerollNpc" data-token-id="{{npc.tokenId}}" title="{{localize 'TLG.LootReview.RerollNpc'}}">
+            <i class="fas fa-dice"></i>
+          </button>
+        </div>
+      {{/each}}
+    </div>
+
+    <footer class="tlg-review-footer">
+      <div class="tlg-currency-row">
+        {{#each currencyRows as |row|}}
+          <label class="tlg-currency-field">
+            {{row.label}}
+            <input type="number" class="tlg-currency-input" data-denom="{{row.key}}" value="{{row.amount}}" min="0" step="1">
+          </label>
+        {{/each}}
+      </div>
+      <div class="tlg-review-totals">
+        {{localize 'TLG.LootReview.ItemCount'}}: {{itemCount}}
+      </div>
+      <div class="tlg-review-actions">
+        <button type="button" data-action="discard"><i class="fas fa-trash"></i> {{localize 'TLG.LootReview.Discard'}}</button>
+        <button type="button" class="tlg-release-btn" data-action="release"><i class="fas fa-check"></i> {{localize 'TLG.LootReview.Release'}}</button>
+      </div>
+    </footer>
+  </form>
+{{/if}}

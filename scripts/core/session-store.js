@@ -5,7 +5,22 @@
 // call and writes back the whole sessions map. Reads return deep clones so
 // callers can freely mutate what they get back without corrupting the store.
 
-import { MODULE_ID, SETTINGS } from "../config.js";
+import { MODULE_ID, SETTINGS, SOCKET_NAME } from "../config.js";
+
+// Post-write notification. The sessions world-setting's registered onChange
+// is SUPPOSED to re-render every client after a write, but some hosts
+// (observed on Sqyre) do not deliver setting onChange reliably. So every
+// successful write also (a) invokes a locally registered callback (the
+// writer's own windows re-render immediately) and (b) emits a lightweight
+// socket ping so other clients re-render even if their onChange never fires.
+// When onChange DOES work this is redundant but harmless: syncOpenWindows is
+// idempotent and transition side effects are guarded by lastKnownStatus.
+let onSessionsWritten = null;
+export function setOnSessionsWritten(fn) { onSessionsWritten = fn; }
+function notifySessionsWritten() {
+  try { onSessionsWritten?.(); } catch (err) { console.error("TLG | sessions-written callback failed", err); }
+  try { game.socket?.emit(SOCKET_NAME, { type: "sync" }); } catch (err) { console.error("TLG | sync ping emit failed", err); }
+}
 
 const TERMINAL_STATUSES = ["finalized", "discarded"];
 const MAX_HISTORY = 50;
@@ -27,6 +42,7 @@ function getSessionsMap() {
 
 async function setSessionsMap(map) {
   await game.settings.set(MODULE_ID, SETTINGS.SESSIONS, map);
+  notifySessionsWritten();
 }
 
 export function validateTransition(from, to) {

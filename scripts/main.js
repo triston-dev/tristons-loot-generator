@@ -1,7 +1,7 @@
-import { MODULE_ID, SETTINGS, FLAGS } from "./config.js";
+import { MODULE_ID, SETTINGS, FLAGS, SOCKET_NAME } from "./config.js";
 import { initEncounterHooks, setOnCaptured, generateNow } from "./core/encounter-service.js";
 import { initSocket } from "./core/socket-service.js";
-import { getSessions } from "./core/session-store.js";
+import { getSessions, setOnSessionsWritten } from "./core/session-store.js";
 import { TableManagerApp } from "./apps/table-manager.js";
 import { LootReviewApp } from "./apps/loot-review.js";
 import { DistributionApp, syncOpenWindows, lastKnownStatus } from "./apps/distribution.js";
@@ -79,6 +79,15 @@ Hooks.once("init", () => {
 Hooks.once("ready", () => {
   initSocket();
   initEncounterHooks();
+
+  // Belt-and-suspenders sync (see session-store.js): the writer's own client
+  // re-renders immediately after every session write, and a socket ping
+  // re-renders everyone else — independent of whether this host delivers
+  // world-setting onChange events (Sqyre has been observed not to).
+  setOnSessionsWritten(() => syncOpenWindows());
+  game.socket.on(SOCKET_NAME, (msg) => {
+    if (msg?.type === "sync") syncOpenWindows();
+  });
 
   // Loot Review opens automatically when a combat capture produces a pending
   // session and the GM review gate is on — captureSession() in

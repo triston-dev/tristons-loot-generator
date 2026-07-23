@@ -430,7 +430,13 @@ describe("sendIntent", () => {
     const after = SS.getSession(released.id);
     expect(after.items[0].state).toBe("claimed");
     expect(after.items[0].claimedBy).toBe("Actor.pc1");
-    expect(emitSpy).not.toHaveBeenCalled();
+    // Session writes emit "sync" render pings (belt-and-suspenders for hosts
+    // with unreliable setting onChange) — but never an "intent" message: the
+    // primary GM processes its own intents locally.
+    const intentEmits = emitSpy.mock.calls.filter(([, msg]) => msg?.type === "intent");
+    expect(intentEmits).toHaveLength(0);
+    const nonSyncEmits = emitSpy.mock.calls.filter(([, msg]) => msg?.type !== "sync");
+    expect(nonSyncEmits).toHaveLength(0);
   });
 
   it("non-GM emits an intent message on the socket instead of processing locally", async () => {
